@@ -25,7 +25,7 @@ require_once 'liveproto.php';
 ```php
 <?php
 
-define('LP_VERSION','0.0.14');
+define('LP_VERSION','0.0.15');
 
 if(file_exists('liveproto.php') === false):
     copy('https://installer.liveproto.dev/liveproto.php','liveproto.php');
@@ -39,11 +39,11 @@ OR
 ```php
 <?php
 
-if(file_exists('liveproto-v0.0.14.phar') === false):
-    copy('https://phar.liveproto.dev/v0.0.14/liveproto.phar','liveproto-v0.0.14.phar');
+if(file_exists('liveproto-v0.0.15.phar') === false):
+    copy('https://phar.liveproto.dev/v0.0.15/liveproto.phar','liveproto-v0.0.15.phar');
 endif;
 
-require_once 'liveproto-v0.0.14.phar';
+require_once 'liveproto-v0.0.15.phar';
 ```
 
 ---
@@ -91,4 +91,36 @@ require_once 'vendor/autoload.php';
 
 ```bash
 composer update
+```
+
+---
+
+## Docker Based
+
+Install Docker and verify `docker --version`
+
+> Pull the image
+
+```bash
+docker pull taknone/liveproto:latest
+```
+
+> Try an interactive shell & Run example
+
+```bash
+docker run --rm -it taknone/liveproto:latest /bin/sh
+
+php /app/examples/bot-example.php
+```
+
+---
+
+## Bash Installer
+
+Typically used to perform a local install, fetch dependencies, or run helper setup commands provided by the project maintainers
+
+> Run the remote install script
+
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/TakNone/LiveProto/master/install.sh)
 ```
