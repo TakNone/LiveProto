@@ -156,8 +156,8 @@ final class Sender {
 			} finally {
 				$try--;
 			}
-		} while($try > 0 and isset($code) and $code == 400);
-		throw new \RuntimeException('Failed to create a temporary client !');
+		} while($try > 0 and $code === 400);
+		throw new \RuntimeException('Failed to create a temporary client !',$code,$error);
 	}
 	public function receive(MTRequest $request) : mixed {
 		$future = $request->getDeferred()->getFuture();
@@ -208,11 +208,16 @@ final class Sender {
 				$body = $this->transport->receive();
 				$closure = function(string $result) : void {
 					$plain = $this->decryptMTProtoMessage(data : $result,version : 2);
-					list($message,$remoteMessageId,$remoteSequence) = $this->decomposePlainMessage($plain);
-					$reader = new Binary();
-					$reader->write($message);
-					$this->processMessage($remoteMessageId,$remoteSequence,$reader);
+					list($reader,$salt,$session_id,$message_id,$sequence) = $this->decomposePlainMessage($plain);
+					if($session_id !== $this->load->id):
+						Logging::log('Receive Packet','Server replied with a wrong session id !',E_ERROR);
+					endif;
+					if($message_id % 2 !== 1):
+						Logging::log('Receive Packet','Server sent an even message id !',E_ERROR);
+					endif;
+					$this->processMessage($reader,$message_id,$sequence);
 					$this->receivedLoop();
+					$this->gcCleanup();
 				};
 				EventLoop::queue($closure,$body);
 			} catch(Security $error){
@@ -223,7 +228,6 @@ final class Sender {
 				Logging::log('Receive Packet',$error->getMessage(),E_WARNING);
 				$this->ping();
 				$this->httpLongPoll();
-				$this->gcCleanup();
 			}
 		endwhile;
 	}
@@ -260,28 +264,19 @@ final class Sender {
 	public function decomposePlainMessage(string $plain) : array {
 		$plainReader = new Binary();
 		$plainReader->write($plain);
-		$remoteSalt = $plainReader->readLong();
-		$remoteSessionId = $plainReader->readLong();
-		if($remoteSessionId !== $this->load->id):
-			Logging::log('Decode Message','Server replied with a wrong session id !',E_ERROR);
-		endif;
-		$remoteMessageId = $plainReader->readLong();
-		if($remoteMessageId % 2 !== 1):
-			Logging::log('Decode Message','Server sent an even message id !',E_ERROR);
-		endif;
-		$remoteSequence = $plainReader->readInt();
-		$messageLength = $plainReader->readInt();
-		$message = $plainReader->read($messageLength);
+		$salt = $plainReader->readLong();
+		$session_id = $plainReader->readLong();
+		$mtResponse = MTRequest::fromMessage($plainReader);
 		$padding = strlen($plainReader->read());
 		if($padding < 12 or $padding > 1024):
 			Logging::log('Decode Message','Padding must be between 12 and 1024 bytes !',E_ERROR);
 		endif;
-		return array($message,$remoteMessageId,$remoteSequence);
+		return array($mtResponse->binary,$salt,$session_id,$mtResponse->messageId,$mtResponse->sequence);
 	}
-	public function processMessage(int $messageId,int $sequence,Binary $reader) : void {
+	public function processMessage(Binary $reader,int $message_id,int $sequence) : void {
 		$object = strval($reader);
 		$constructorId = $reader->readInt();
-		Logging::log('Process Message',(class_exists($object) ? 'Object : '.$object : 'Constructor Number : 0x'.dechex($constructorId)).' , Message ID : '.$messageId);
+		Logging::log('Process Message',(class_exists($object) ? 'Object : '.$object : 'Constructor Number : 0x'.dechex($constructorId)).' , Message ID : '.$message_id.' , Sequence : '.$sequence);
 		# pong#347773c5 msg_id:long ping_id:long = Pong; #
 		if($constructorId == 0x347773c5):
 			$msg_id = $reader->readLong();
@@ -301,7 +296,7 @@ final class Sender {
 				$seq_no = $reader->readInt();
 				$length = $reader->readInt();
 				$position = $reader->tellPosition();
-				$this->processMessage($msg_id,$seq_no,$reader);
+				$this->processMessage($reader,$msg_id,$seq_no);
 				$reader->setPosition($length + $position);
 			endfor;
 			return;
@@ -311,7 +306,7 @@ final class Sender {
 			$unpacked = gzdecode($packed_data);
 			$gzip = new Binary();
 			$gzip->write($unpacked);
-			$this->processMessage($messageId,$sequence,$gzip);
+			$this->processMessage($gzip,$message_id,$sequence);
 			return;
 		# msgs_ack#62d6b459 msg_ids:Vector<long> = MsgsAck; #
 		elseif($constructorId == 0x62d6b459):
@@ -372,7 +367,7 @@ final class Sender {
 				$bad_msg_seqno = $reader->readInt();
 				$error_code = $reader->readInt();
 				if(in_array($error_code,array(16,17))):
-					$this->session->updateTimeOffset($messageId);
+					$this->session->updateTimeOffset($message_id);
 				elseif($error_code == 18):
 					$this->load['sequence'] = intval(ceil($this->load['sequence'] / 4) * 4);
 				elseif(in_array($error_code,array(32,33))):
@@ -452,8 +447,10 @@ final class Sender {
 			Logging::log('Process Message','Unknown message : 0x'.dechex($constructorId),E_WARNING);
 			var_dump($reader->readObject(true));
 		endif;
-		$this->pendingAcks []= $messageId;
-		$this->sendAcknowledgement();
+		if($sequence % 2 === 1):
+			$this->pendingAcks []= $message_id;
+			$this->sendAcknowledgement();
+		endif;
 	}
 	public function getFutureSalts() : array {
 		$valid_since = strtotime('+ 36 hours');
@@ -529,8 +526,14 @@ final class Sender {
 		 *
 		 * $filtered = array_filter($this->queue,fn(MTRequest $request) : bool => is_null($request->getDeferred(false)));
 		 */
+		$before = count($this->queue);
+		$this->queue = array_filter($this->queue,fn(MTRequest $request) : bool => $request->getDeferred(lazyInit : false)?->isComplete() == false);
 		$this->queue = array_slice(array : $this->queue,offset : - Settings::envGuess('MAX_QUEUE_LENGTH',1000),preserve_keys : true);
-		gc_collect_cycles();
+		$after = count($this->queue);
+		if($before - $after > 0):
+			Logging::log('Garbage Collection','Cleanup : '.strval($before - $after));
+			gc_collect_cycles();
+		endif;
 	}
 	public function errors(Throwable $error) : never {
 		Logging::log('Sender',$error->getMessage(),E_ERROR);

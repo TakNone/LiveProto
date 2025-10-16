@@ -17,13 +17,16 @@ use Closure;
 use Throwable;
 
 final class Pagination implements Iterator {
+	protected ? Closure $computeLongHash;
 	private int $hash = 0;
 	private array $results = array();
 	private int $position = 0;
 
-	public function __construct(protected Closure $callback,public int $offset,public int $limit,protected Closure | array $computeLongHash = array()){
-		if(is_array($computeLongHash)):
-			$this->computeLongHash = fn(int $hash,array $results) : int => fn(int $hash,array $results) : int => Helper::hashGeneration($hash,Tools::populateIds($results,$computeLongHash));
+	public function __construct(protected Closure $callback,public int $offset,public int $limit,Closure | array | null $hasher = null){
+		if(is_array($hasher)):
+			$this->computeLongHash = empty($hasher) ? null : fn(int $hash,array $results) : int => fn(int $hash,array $results) : int => Helper::hashGeneration($hash,Tools::populateIds($results,$hasher));
+		else:
+			$this->computeLongHash = $hasher;
 		endif;
 	}
 	public function current() : mixed {

@@ -3,6 +3,7 @@
 ## methods
 
 - `__construct` => <kbd>void</kbd> : Initializes the Telegram client
+
   - <kbd>string | null $resourceName</kbd> , the saved session identifier ( or `null` for a new session which is not going to be saved )
   - <kbd>string | null $storageDriver</kbd> , the operation mode (e.g. `"mysql"`, `"string"`, `"text"`) or `null`
   - <kbd>Settings $settings</kbd> , an instance of configuration settings
@@ -30,6 +31,7 @@
   - <kbd>bool $media = false</kbd> , whether this is for a media connection
   - <kbd>bool $tcpo = false</kbd> , whether this is for supports connection with [transport obfuscation](en/enums.md#ProtocolType)
   - <kbd>bool $next = false</kbd> , whether to move to the “next” DC in list
+  - <kbd>bool $renew = false</kbd> , whether to create new socket connection
   - <kbd>int $expires_in = 0</kbd> , time ( in seconds ) for temporary auth
 
 - `getTemp` => <kbd>self</kbd> : Retrieves a temporary auth client
@@ -78,6 +80,8 @@
 
 - `start` => <kbd>void</kbd> : Starts the automatic update loop ( long polling )
 
-- `stop` => <kbd>void</kbd> : Stops the automatic update loop
+  - <kbd>bool $run_until_disconnected = true</kbd> , whether to run until disconnected
+
+- `stop` => <kbd>void</kbd> : Stops the automatic update loop and disconnect
 
 - `disconnect` => <kbd>void</kbd> : Gracefully closes the TCP connection

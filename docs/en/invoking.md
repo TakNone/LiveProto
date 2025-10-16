@@ -112,9 +112,17 @@ var_dump($client('messages/sendMessageMultiple',[array('peer'=>$client->get_inpu
 | `floodwaitlimit` | `Integer` | `0` | If zero, it is disabled, otherwise you specify the maximum time you want to wait before resending the request if a flood wait error is encountered |
 | `extra` | `mixed` | `Null` | If null, it is disabled, otherwise you can add additional information to the response to a specific request |
 
-?> Note, If the flood wait time exceeds the maximum time set, we will not resend it and you will encounter a flood wait error and you will have to handle it yourself , And we also consider the maximum value you set between the `floodwaitlimit` parameter and the [`floodsleepthreshold`](en/configuration.md#flood-sleep-threshold) parameter
+?> Note, If the flood wait time exceeds the maximum time set, we will not resend it and you will encounter a flood wait error and you will have to handle it yourself , And we also consider the maximum value you set between the `floodwaitlimit` parameter and the [`floodSleepThreshold`](en/configuration.md#flood-sleep-threshold) parameter
 
 ---
+
+#### Telegram Business
+
+The [invokeWithBusinessConnection](https://tl.liveproto.dev/#/method/invokeWithBusinessConnection) invoke a method using a Telegram Business Bot connection
+
+```php
+var_dump($client->messages->sendMessage(peer : $peer,message : 'A message is sent via Telegram Business Bot',random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),businessConnectionId : 'Abcd...'));
+```
 
 #### Disabling updates
 
@@ -123,7 +131,7 @@ The [invokeWithoutUpdates](https://tl.liveproto.dev/#/method/invokeWithoutUpdate
 ```php
 $temp = $client->getTemp(dc_id : 2,expires_in : 24 * 60 * 60);
 
-var_dump($temp->messages->sendMessage(peer : $peer,message : 'We will not track updates in this hypothetical connection',random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),receiveupdates : false));
+var_dump($temp->messages->sendMessage(peer : $peer,message : 'We will not track updates in this hypothetical connection',random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),receiveUpdates : false));
 ```
 
 #### Sequential Requests

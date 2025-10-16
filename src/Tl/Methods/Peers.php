@@ -6,6 +6,8 @@ namespace Tak\Liveproto\Tl\Methods;
 
 use Tak\Liveproto\Enums\PeerType;
 
+use Throwable;
+
 trait Peers {
 	private const MIN_CHAT_ID = -999999999999;
 	private const MIN_CHANNEL_ID = (1 << 31) - 2000000000000;
@@ -76,13 +78,13 @@ trait Peers {
 					$user = $this->users->getFullUser($entity)->users[false];
 					$this->load->peers->setPeers(type : 'users',peers : [array('id'=>$user->id,'access_hash'=>intval($user->access_hash))]);
 					return $entity;
-				} catch(\Throwable){
+				} catch(Throwable){
 					try {
 						$entity = $this->inputPeerChannel(channel_id : $peer,access_hash : $hash);
 						$channel = $this->channels->getFullChannel($entity)->chats[false];
 						$this->load->peers->setPeers(type : 'chats',peers : [array('id'=>$channel->id,'access_hash'=>intval($channel->access_hash))]);
 						return $entity;
-					} catch(\Throwable){
+					} catch(Throwable){
 						return $this->inputPeerChat(chat_id : $peer);
 					}
 				}

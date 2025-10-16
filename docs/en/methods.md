@@ -216,6 +216,24 @@ $client->cancel_code();
 
 ---
 
+## reset_login_email()
+
+Reset the login email
+
+Usable by :
+- [x] Users
+- [ ] Bots
+
+##### <pre>Returns</pre>
+Bool
+
+##### <pre>Example</pre>
+```php
+$client->reset_login_email();
+```
+
+---
+
 ## firebase_sms()
 
 This method is used to send a code via SMS, and your client must be [official](configuration.md#Params)
@@ -401,41 +419,55 @@ Usable by :
 - [ ] Bots
 
 ##### <pre>Arguments</pre>
-- limit(<small>int</small>) <kbd onclick = "alert('default : PHP_INT_MAX')">optional</kbd> :
-  - The maximum number of dialogs to retrieve
+- offset_peer(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Peer used as offset for pagination
 
-- id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Offset ID for pagination
+- offset(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Numeric offset ( page index ) used for pagination
 
-- date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Offset date for pagination
+- offset_id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Message ID offset used for fetching relative to a specific message
 
-- peer(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Offset peer
+- offset_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Date ( unix timestamp ) offset used for pagination
 
-- hash(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Hash value for optimization purposes
+- limit(<small>int</small>) <kbd onclick = "alert('default : 100')">optional</kbd> :
+  - Maximum number of dialogs to retrieve in one request / batch
 
-- pinned(<small>true</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Exclude pinned chats if set to true
+- saved(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+  - If true, the getSavedDialogs or getPinnedSavedDialogs ( pinned = true) method will be used
 
-- folder(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Folder ID to filter dialogs by specific folders
+- hashgen(<small>Closure</small>,<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional hash generator ( Closure or array of indexes ) used for caching / validation of message sets
 
-- callback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Callback function to process each batch of dialogs
+- ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
+  - Any additional variadic parameters passed through to lower-level calls
 
 ##### <pre>Returns</pre>
-An array of retrieved dialogs
+An iterator yielding instances of [Message](https://tl.liveproto.dev/#/type/Message) and one of [Dialog](https://tl.liveproto.dev/#/type/Dialog) , [SavedDialog](https://tl.liveproto.dev/#/type/SavedDialog)
 
 ##### <pre>Example</pre>
 ```php
-$client->get_dialogs(limit : 50,peer : '@LiveProto',callback : function(object $result) : bool {
-	/*
-	You can see the results of each step
-	*/
-	return true; // If it is false , the process stops
-});
+$dialogs = $client->get_dialogs(offset_peer : '@LiveProto',limit : 50);
+
+$dialogs = $client->get_dialogs(offset_date : strtotime('- 2 days'),pinned : true);
+
+$dialogs = $client->get_dialogs(limit : 90,saved : true);
+
+$dialogs = $client->get_dialogs(limit : 100,saved : true,pinned : true);
+
+/*
+ * Now let's look at the results of each of the above models
+ * The results of all of them are in the form of an object that has the properties `message` and `dialog`, It's very simple !
+ */
+foreach($dialogs as $item){
+	try {
+		echo json_encode($item->message,flags : JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) , PHP_EOL;
+		echo json_encode($item->dialog,flags : JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) , PHP_EOL;
+	} catch(Throwable){
+		var_dump($item);
+	}
+}
 ```
 
 ---
@@ -1040,9 +1072,9 @@ An instance of [InputMedia](https://tl.liveproto.dev/#/type/InputMedia)
 
 ##### <pre>Example</pre>
 ```php
-$nessageMedia = $client->messageMediaDice(value : 6,emoticon : '🎲');
+$messageMedia = $client->messageMediaDice(value : 6,emoticon : '🎲');
 
-$inputMedia = $client->get_input_media($nessageMedia);
+$inputMedia = $client->get_input_media($messageMedia);
 
 $peer = $client->get_input_peer('@TakNone');
 
@@ -1726,6 +1758,56 @@ $client->send_secret_file(peer : $peer,file : $file,message : 'The caption',ttl 
 
 ---
 
+## send_content()
+
+Sends text or media to a peer, Long text is split into chunks and sent as multiple messages. Supports parse modes ( HTML / Markdown ), uploaded media or existing media objects, and returns either a single Message or an array of Messages when multiple were sent
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+> [!NOTE]
+> The message text is divided into 4096-byte chunks. If it is placed in the media caption, this value is reduced to 1024 characters, and as a result, the function output will be an array of objects
+
+##### <pre>Arguments</pre>
+- peer(<small>string</small>,<small>int</small>,<small>object</small>) <kbd style="color : red">required</kbd> :
+  - Target peer ( username , ID , or peer object )
+
+- message(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - It can be the text of a message or the caption of a media
+
+- parse_mode(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional parse mode for formatting ( e.g. , "HTML" , "Markdown" , "MarkdownV2" ) The method will convert to entities when supported
+
+- media(<small>string</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Either a path / string referencing an uploaded file, an existing media object, or null for no media
+
+- send_as(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Send this message as the specified peer
+
+- file_type(<small>FileType</small>) <kbd onclick = "alert('default : FileType::DOCUMENT')">optional</kbd> :
+  - Specifies how to treat a string media ( document , photo , etc.) Uses the [`FileType`](en/enums.md#FileType) enum
+
+- uploaded(<small>array</small>) <kbd onclick = "alert('default : array()')">optional</kbd> :
+  - Optional array of upload-related metadata / options passed to get_input_media_uploaded ( e.g. , attributes )
+
+- args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
+  - Additional variadic arguments forwarded to lower-level [`sendMessage`](https://tl.liveproto.dev/#/method/messages.sendMessage) / [`sendMedia`](https://tl.liveproto.dev/#/method/messages.sendMedia) calls ( e.g. , reply_markup , schedule_date )
+
+##### <pre>Returns</pre>
+An instance of [Message](https://core.telegram.org/constructor/message) or an array of [Message](https://core.telegram.org/constructor/message) instances when multiple messages were sent
+
+##### <pre>Example</pre>
+```php
+$client->send_content(peer : '@TakNone',message : 'Hello <b>world</b> !',parse_mode : 'HTML'); // send text only
+
+$attributes = array($client->documentAttributeVideo(duration : 60,w : 512,h : 512)); // this is optional
+
+$client->send_content(peer : '@LiveProtoChat',message : 'This is the media caption',media : './video.mp4',uploaded : ['attributes'=>$attributes]); // send an uploaded media ( path ) as a document with extra upload options
+```
+
+---
+
 ## fetch_messages()
 
 Fetches messages with many optional filters ( IDs , text query , replies , date , ID ranges , etc ) Returns an iterator that yields message objects matching the filters
@@ -1740,6 +1822,30 @@ Usable by :
 
 - offset_peer(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Peer used as offset for pagination
+
+- offset(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Numeric offset ( page index ) used for pagination
+
+- offset_id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Message ID offset used for fetching relative to a specific message
+
+- offset_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Date ( unix timestamp ) offset used for pagination
+
+- limit(<small>int</small>) <kbd onclick = "alert('default : 100')">optional</kbd> :
+  - Maximum number of messages to retrieve in one request / batch
+
+- min_id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Minimum message ID to include ( filters out older messages )
+
+- max_id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Maximum message ID to include ( filters out newer messages )
+
+- min_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Minimum unix date ( timestamp ) to include
+
+- max_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Maximum unix date ( timestamp ) to include
 
 - unread_mentions(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
   - If true , only messages with unread mentions will be included
@@ -1766,7 +1872,7 @@ Usable by :
   - Optional list of message IDs to fetch exactly, When provided the call returns those messages ( Vector of ints )
 
 - filter(<small>object&lt;MessagesFilter&gt;</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Optional filter object ( MessagesFilter ) to restrict message types ( photos , video , gifs , etc )
+  - Optional filter object ( [`MessagesFilter`](https://tl.liveproto.dev/#/type/MessagesFilter) ) to restrict message types ( photos , video , gifs , etc )
 
 - query(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Text query used when performing a text search ( only used if `search` / `posts` is true or special occasions )
@@ -1777,32 +1883,8 @@ Usable by :
 - shortcut_id(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Optional shortcut identifier used by client-side UI to fetch messages for a quick action
 
-- offset(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Numeric offset ( page index ) used for pagination
-
-- offset_id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Message ID offset used for fetching relative to a specific message
-
-- offset_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Date ( unix timestamp ) offset used for pagination
-
-- limit(<small>int</small>) <kbd onclick = "alert('default : 100')">optional</kbd> :
-  - Maximum number of messages to retrieve in one request / batch
-
-- min_id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Minimum message ID to include ( filters out older messages )
-
-- max_id(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Maximum message ID to include ( filters out newer messages )
-
-- min_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Minimum unix date ( timestamp ) to include
-
-- max_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
-  - Maximum unix date ( timestamp ) to include
-
-- hashgen(<small>callable</small>,<small>array</small>) <kbd onclick = "alert('default : array()')">optional</kbd> :
-  - Optional hash generator ( callable or array of functions ) used for caching / validation of message sets
+- hashgen(<small>Closure</small>,<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional hash generator ( Closure or array of indexes ) used for caching / validation of message sets
 
 - ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
   - Any additional variadic parameters passed through to lower-level calls

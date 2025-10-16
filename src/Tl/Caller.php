@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace Tak\Liveproto\Tl;
 
+use Tak\Liveproto\Utils\Logging;
+
 use Tak\Liveproto\Tl\Methods\Account;
 
 use Tak\Liveproto\Tl\Methods\Auth;
@@ -57,6 +59,7 @@ abstract class Caller {
 	protected array $peersType = array();
 	protected array $peersId = array();
 	protected array $secretChats = array();
+	protected array $connections = array();
 
 	use Account;
 	use Auth;
@@ -101,15 +104,14 @@ abstract class Caller {
 		$split = explode(str_contains($request,chr(46)) ? chr(46) : chr(47),$request);
 		if(count($split) === 2):
 			$name = $split[true];
-			$space = $split[false];
+			$space = new Properties($this,$split[false]);
 		elseif(count($split) === 1):
 			$name = $split[false];
-			$space = 'other';
+			$space = new Properties($this);
 		else:
 			throw new \Exception('Namespace ('.$request.') not found !');
 		endif;
-		$other = new Properties($this,$space);
-		return $other->$name(...$arguments);
+		return $space->$name(...$arguments);
 	}
 }
 
@@ -146,7 +148,7 @@ final class Properties {
 			foreach($arguments as $i => $argument):
 				if($queued === true):
 					if(is_null($lastMessageId) === false):
-						$argument += ['afterid'=>$lastMessageId];
+						$argument += ['afterId'=>$lastMessageId];
 					endif;
 					$lastMessageId = $this->session->getNewMsgId();
 					$argument += ['messageid'=>$lastMessageId];
@@ -201,16 +203,6 @@ final class Properties {
 				endif;
 			endforeach;
 			extract($filtered);
-			if(isset($arguments['receiveupdates'])):
-				if($arguments['receiveupdates'] === false):
-					unset($arguments['receiveupdates']);
-					$arguments['raw'] = true;
-					$request = call_user_func(__METHOD__,$name,$arguments);
-					return $this->parent->invokeWithoutUpdates($request,...$filtered);
-				else:
-					unset($arguments['receiveupdates']);
-				endif;
-			endif;
 			if(isset($arguments['takeout'])):
 				if($arguments['takeout'] === true):
 					unset($arguments['takeout']);
@@ -221,15 +213,36 @@ final class Properties {
 					unset($arguments['takeout']);
 				endif;
 			endif;
-			if(isset($arguments['afterid'])):
-				if(is_int($arguments['afterid'])):
-					$afterid = intval($arguments['afterid']);
-					unset($arguments['afterid']);
+			if(isset($arguments['receiveUpdates'])):
+				if($arguments['receiveUpdates'] === false):
+					unset($arguments['receiveUpdates']);
 					$arguments['raw'] = true;
 					$request = call_user_func(__METHOD__,$name,$arguments);
-					return $this->parent->invokeAfterMsg($afterid,$request,...$filtered);
+					return $this->parent->invokeWithoutUpdates($request,...$filtered);
 				else:
-					unset($arguments['afterid']);
+					unset($arguments['receiveUpdates']);
+				endif;
+			endif;
+			if(isset($arguments['afterId'])):
+				if(is_numeric($arguments['afterId'])):
+					$afterId = intval($arguments['afterId']);
+					unset($arguments['afterId']);
+					$arguments['raw'] = true;
+					$request = call_user_func(__METHOD__,$name,$arguments);
+					return $this->parent->invokeAfterMsg($afterId,$request,...$filtered);
+				else:
+					unset($arguments['afterId']);
+				endif;
+			endif;
+			if(isset($arguments['businessConnectionId'])):
+				if(empty($arguments['businessConnectionId']) === false):
+					$businessConnectionId = strval($arguments['businessConnectionId']);
+					unset($arguments['businessConnectionId']);
+					$arguments['raw'] = true;
+					$request = call_user_func(__METHOD__,$name,$arguments);
+					return $this->parent->invokeWithBusinessConnection($businessConnectionId,$request,...$filtered);
+				else:
+					unset($arguments['businessConnectionId']);
 				endif;
 			endif;
 			$request = new $class($arguments);
@@ -241,11 +254,12 @@ final class Properties {
 				try {
 					$result = $response ? $this->sender->receive($mtRequest) : new \stdClass;
 				} catch(RpcError $error){
-					$floodmax = max($this->settings->floodsleepthreshold,$floodwaitlimit);
+					$floodmax = max($this->settings->floodSleepThreshold,$floodwaitlimit);
 					if($error->getCode() == 420 and $floodmax >= $error->getValue()):
+						Logging::log('Caller','Waiting for '.$error->getValue().' seconds to resend the request due to a flood error',E_NOTICE);
 						delay($error->getValue());
 						$arguments['timeout'] = $timeout;
-						$result = call_user_func(__METHOD__,$name,$arguments);
+						$result = call_user_func(__METHOD__,$name,$arguments + $filtered);
 					else:
 						throw $error;
 					endif;

@@ -4,48 +4,128 @@ declare(strict_types = 1);
 
 namespace Tak\Liveproto\Tl\Methods;
 
+use Tak\Liveproto\Utils\Helper;
+
 use Tak\Liveproto\Utils\Logging;
 
-use function Amp\async;
+use Tak\Liveproto\Tl\Pagination;
+
+use Tak\Liveproto\Attributes\Type;
+
+use Iterator;
+
+use Closure;
 
 trait Dialog {
-	public function get_dialogs(
-		int $limit = PHP_INT_MAX,
-		int $id = 0,
-		int $date = 0,
-		string | int | null | object $peer = null,
-		int $hash = 0,
-		? true $pinned = null,
-		? int $folder = null,
-		? callable $callback = null
-	) : array {
+	protected function parse_dialogs(#[Type(['messages.Dialogs','messages.SavedDialogs','messages.peerDialogs'])] object $results) : array {
 		$dialogs = array();
-		do {
-			$lastoffset = ['id'=>$id,'date'=>$date,'peer'=>$peer];
-			$result = $this->messages->getDialogs(offset_date : $date,offset_id : $id,offset_peer : $this->get_input_peer($peer),limit : min($limit,100),hash : $hash,exclude_pinned : $pinned,folder_id : $folder);
-			$count = isset($result->dialogs) ? count($result->dialogs) : 0;
-			$limit -= $count;
-			if(isset($result->messages)):
-				$messages = array_reverse($result->messages);
-				foreach($messages as $message):
-					if($message instanceof \Tak\Liveproto\Tl\Types\Others\Message or $message instanceof \Tak\Liveproto\Tl\Types\Others\MessageService):
-						$id = $message->id;
-						$date = $message->date;
-						$peer = $message->peer_id;
-						break;
-					endif;
-				endforeach;
-				if(is_null($callback) === false):
-					if(async($callback(...),$result)->await() === false):
-						break;
-					endif;
-				else:
-					$dialogs []= $result;
-				endif;
-			endif;
-			$newoffset = ['id'=>$id,'date'=>$date,'peer'=>$peer];
-		} while($lastoffset !== $newoffset and isset($result->count) and $count > 0 and $limit > 0);
+		foreach($results->dialogs as $dialog):
+			$message = array_filter($results->messages,fn(object $message) => $message->id === $dialog->top_message);
+			$dialogs []= (object) ['dialog'=>$dialog,'message'=>reset($message)];
+		endforeach;
 		return $dialogs;
+	}
+	public function get_dialogs(
+		string | int | null | object $offset_peer = null,
+		int $offset = 0,
+		int $offset_id = 0,
+		int $offset_date = 0,
+		int $limit = 100,
+		bool $saved = false,
+		bool $pinned = false,
+		Closure | array | null $hashgen = null,
+		mixed ...$args
+	) : Iterator {
+		if($saved):
+			if($pinned):
+				$fetchResults = function(int $offset,int $limit) use($args) : array {
+					Logging::log('Pinned Saved Dialog','offset = '.$offset.' & limit = '.$limit);
+					$results = $this->messages->getPinnedSavedDialogs(...$args);
+					switch($results->getClass()):
+						# messages.savedDialogs#f83ae221 dialogs:Vector<SavedDialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.SavedDialogs; #
+						# messages.savedDialogsSlice#44ba9dd9 count:int dialogs:Vector<SavedDialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.SavedDialogs; #
+						case 'messages.savedDialogs':
+						case 'messages.savedDialogsSlice':
+							return array_slice($this->parse_dialogs($results),$offset,$limit);
+						# messages.savedDialogsNotModified#c01f6fe8 count:int = messages.SavedDialogs; #
+						case 'messages.savedDialogsNotModified':
+							return array();
+					endswitch;
+				};
+			else:
+				$fetchResults = function(int $offset,int $limit,int $hash) use(&$offset_peer,&$offset_id,&$offset_date,$args) : array {
+					Logging::log('Saved Dialog','offset id = '.$offset_id.' & offset date = '.$offset_date.' & limit = '.$limit);
+					$inputOffsetPeer = $this->get_input_peer($offset_peer);
+					$results = $this->messages->getSavedDialogs(...$args,offset_peer : $inputOffsetPeer,offset_id : $offset_id,offset_date : $offset_date,limit : $limit,hash : $hash);
+					switch($results->getClass()):
+						# messages.savedDialogs#f83ae221 dialogs:Vector<SavedDialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.SavedDialogs; #
+						# messages.savedDialogsSlice#44ba9dd9 count:int dialogs:Vector<SavedDialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.SavedDialogs; #
+						case 'messages.savedDialogs':
+						case 'messages.savedDialogsSlice':
+							foreach(array_reverse($results->messages) as $last):
+								if($last->getClass() !== 'messageEmpty'):
+									list($offset_peer,$offset_id,$offset_date) = array($last->peer_id,$last->id - 1,$last->date);
+									break;
+								endif;
+							endforeach;
+							return $this->parse_dialogs($results);
+						# messages.savedDialogsNotModified#c01f6fe8 count:int = messages.SavedDialogs; #
+						case 'messages.savedDialogsNotModified':
+							return array();
+					endswitch;
+				};
+				/*
+				 * TODO :
+				 * Unfortunately, generating a hash to cache the results of this method did not work
+				 * https://github.com/DrKLO/Telegram/blob/ddc90f16be1ab952114005347e0102365ba6460b/TMessagesProj/src/main/java/org/telegram/messenger/SavedMessagesController.java#L253-L257
+				 * I followed the same procedure as Telegram Android, but I don't know where is the problem
+				$hashgen = function(int $hash,array $results) : int {
+					foreach(array_reverse($results) as $result):
+						$hash = Helper::hashGeneration($hash,array(intval($result->dialog->pinned),$this->get_peer_id($result->dialog->peer),$result->message->id,$result->message->date));
+					endforeach;
+					return $hash;
+				};
+				 */
+			endif;
+		else:
+			if($pinned):
+				$fetchResults = function(int $offset,int $limit) use($args) : array {
+					Logging::log('Pinned Dialog','offset = '.$offset.' & limit = '.$limit);
+					$args += ['folder_id'=>0];
+					$results = $this->messages->getPinnedDialogs(...$args);
+					switch($results->getClass()):
+						# messages.peerDialogs#3371c354 dialogs:Vector<Dialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> state:updates.State = messages.PeerDialogs; #
+						case 'messages.peerDialogs':
+							return array_slice($this->parse_dialogs($results),$offset,$limit);
+						default:
+							return array();
+					endswitch;
+				};
+			else:
+				$fetchResults = function(int $offset,int $limit,int $hash) use(&$offset_peer,&$offset_id,&$offset_date,$args) : array {
+					Logging::log('Dialog','offset id = '.$offset_id.' & offset date = '.$offset_date.' & limit = '.$limit);
+					$inputOffsetPeer = $this->get_input_peer($offset_peer);
+					$results = $this->messages->getDialogs(...$args,offset_peer : $inputOffsetPeer,offset_id : $offset_id,offset_date : $offset_date,limit : $limit,hash : $hash);
+					switch($results->getClass()):
+						# messages.dialogs#15ba6c40 dialogs:Vector<Dialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Dialogs; #
+						# messages.dialogsSlice#71e094f3 count:int dialogs:Vector<Dialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Dialogs; #
+						case 'messages.dialogs':
+						case 'messages.dialogsSlice':
+							foreach(array_reverse($results->messages) as $last):
+								if($last->getClass() !== 'messageEmpty'):
+									list($offset_peer,$offset_id,$offset_date) = array($last->peer_id,$last->id,$last->date);
+									break;
+								endif;
+							endforeach;
+							return $this->parse_dialogs($results);
+						# messages.dialogsNotModified#f0e3e596 count:int = messages.Dialogs; #
+						case 'messages.dialogsNotModified':
+							return array();
+					endswitch;
+				};
+			endif;
+		endif;
+		return new Pagination($fetchResults,$offset,$limit,$hashgen);
 	}
 	public function get_difference(
 		int $pts = 1,

@@ -47,29 +47,32 @@ final class Messages extends Filter {
 				return false;
 			endif;
 		};
-		$event->respond = function(string $message,mixed ...$args) use($event) : object {
+		$event->respond = function(mixed ...$args) use($event) : object {
+			$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			$peer = $event->getPeer();
-			return $event->getClient()->messages->sendMessage($peer,$message,random_int(PHP_INT_MIN,PHP_INT_MAX),...$args);
+			return $event->send_content($peer,...$args);
 		};
-		$event->reply = function(string $message,array $reply_to = array(),mixed ...$args) use($event) : object {
-			$args += ['reply_to'=>$event->inputReplyToMessage($event->message->id,...$reply_to)];
+		$event->reply = function(mixed ...$args) use($event) : object {
+			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
+			$args += ['reply_to'=>$event->inputReplyToMessage($event->message->id,...$reply_to),'businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			$peer = $event->getPeer();
-			return $event->getClient()->messages->sendMessage($peer,$message,random_int(PHP_INT_MIN,PHP_INT_MAX),...$args);
+			return $event->send_content($peer,...$args);
 		};
-		$event->forward = function(mixed $peer,array $reply_to = array(),mixed ...$args) use($event) : object {
-			$args += ['reply_to'=>(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
+		$event->forward = function(mixed $peer,mixed ...$args) use($event) : object {
+			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
+			$args += empty($reply_to) ? [] : ['reply_to'=>(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			$to = $event->get_input_peer($peer);
 			$peer = $event->getPeer();
 			return $event->getClient()->messages->forwardMessages($peer,array($event->message->id),array(random_int(PHP_INT_MIN,PHP_INT_MAX)),$to,...$args);
 		};
 		$event->edit = function(? string $message = null,? object $media = null,mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();
-			$args += ['message'=>$message,'media'=>$media];
+			$args += ['message'=>$message,'media'=>$media,'businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			return $event->getClient()->messages->editMessage($peer,$event->message->id,...$args);
 		};
 		$event->pin = function(mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();
-			$args += ['unpin'=>null];
+			$args += ['unpin'=>null,'businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			return $event->getClient()->messages->updatePinnedMessage($peer,$event->message->id,...$args);
 		};
 		$event->unpin = function(bool $all = false,mixed ...$args) use($event) : object {
@@ -77,12 +80,12 @@ final class Messages extends Filter {
 			if($all === true):
 				return $event->getClient()->messages->unpinAllMessages($peer,...$args);
 			else:
-				$args += ['unpin'=>true];
+				$args += ['unpin'=>true,'businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 				return $event->getClient()->messages->updatePinnedMessage($peer,$event->message->id,...$args);
 			endif;
 		};
 		$event->delete = function(? true $revoke = null) use($event) : object {
-			return $event->message->peer_id instanceof \Tak\Liveproto\Tl\Types\Other\PeerUser ? $event->getClient()->messages->deleteMessages(array($event->message->id),$revoke) : $event->getClient()->channels->deleteMessages($event->getPeer(),array($event->message->id));
+			return $event->message->peer_id instanceof \Tak\Liveproto\Tl\Types\Other\PeerUser ? $event->getClient()->messages->deleteMessages(array($event->message->id),$revoke,businessConnectionId : isset($event->connection_id) ? $event->connection_id : null) : $event->getClient()->channels->deleteMessages($event->getPeer(),array($event->message->id));
 		};
 		$event->reaction = function(string | int | array | null $reaction,mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();

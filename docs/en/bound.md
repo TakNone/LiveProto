@@ -67,10 +67,12 @@
 
 > Used to send messages to the same peer
 
+> [!TIP]
+> The `peer` parameter is already filled in for the `send_content` method
+
 | Parameter | Type | Default | Description |
 | :---: | :---: | :---: | :--- |
-| `message` | `string` | <kbd style="color : red">required</kbd> | The text of the message to be sent |
-| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [sendMessage](https://tl.liveproto.dev/#/method/messages.sendMessage) |
+| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [send_content](https://docs.liveproto.dev/#/en/methods?id=send_content) |
 
 <details>
 <summary style="color : slateblue">Belongs to which handlers ?!</summary>
@@ -98,11 +100,13 @@
 
 > Used to reply to a message from the same peer
 
+> [!TIP]
+> The `peer` parameter is already filled in for the `send_content` method
+
 | Parameter | Type | Default | Description |
 | :---: | :---: | :---: | :--- |
-| `message` | `string` | <kbd style="color : red">required</kbd> | The text of the message to be sent |
-| `reply_to` | `array` | empty `array()` | The values of this variable are passed to [InputReplyTo](https://tl.liveproto.dev/#/type/InputReplyTo) **except for** the values of `reply_to_msg_id` and `peer` and `story_id`  |
-| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [sendMessage](https://tl.liveproto.dev/#/method/messages.sendMessage) |
+| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [send_content](https://docs.liveproto.dev/#/en/methods?id=send_content) |
+| `input_reply_to` | `array` | empty `array()` | The values of this variable are passed to [InputReplyTo](https://tl.liveproto.dev/#/type/InputReplyTo) **except for** the values of `reply_to_msg_id` and `peer` and `story_id`  |
 
 <details>
 <summary style="color : slateblue">Belongs to which handlers ?!</summary>
@@ -127,8 +131,8 @@
 | Parameter | Type | Default | Description |
 | :---: | :---: | :---: | :--- |
 | `peer` | `mixed` | <kbd style="color : red">required</kbd> | This is to specify which peer to forward the message to |
-| `reply_to` | `array` | empty `array()` | The values of this variable are passed to [InputReplyTo](https://tl.liveproto.dev/#/type/InputReplyTo) **including** the values of `reply_to_msg_id` or `peer` and `story_id`  |
-| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [forwardMessages](https://tl.liveproto.dev/#/method/messages.forwardMessages) |
+| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [forwardMessages](https://tl.liveproto.dev/#/method/messages.forwardMessages) For stories, they are passed to the the [sendMedia](https://tl.liveproto.dev/#/method/messages.sendMedia) |
+| `input_reply_to` | `array` | empty `array()` | The values of this variable are passed to [InputReplyTo](https://tl.liveproto.dev/#/type/InputReplyTo) **including** the values of `reply_to_msg_id` or `peer` and `story_id`  |
 
 <details>
 <summary style="color : slateblue">Belongs to which handlers ?!</summary>
@@ -475,6 +479,8 @@
   - [`NewMessage`](en/handlers.md#NewMessage)
   - [`MessageEdited`](en/handlers.md#MessageEdited)
   - [`NewScheduledMessage`](en/handlers.md#NewScheduledMessage)
+
+- [`NewStory`](en/handlers.md#NewStory)
 
 </details>
 

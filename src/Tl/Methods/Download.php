@@ -16,6 +16,14 @@ use Tak\Liveproto\Utils\Logging;
 
 use Tak\Liveproto\Attributes\Type;
 
+use ArrayIterator;
+
+use InfiniteIterator;
+
+use Throwable;
+
+use Closure;
+
 use function Amp\async;
 
 use function Amp\File\openFile;
@@ -26,7 +34,7 @@ use function Amp\File\move;
 
 trait Download {
 	protected function download_file(
-		string $path,
+		string | Closure $path,
 		int $size,
 		int $dc_id,
 		#[Type('InputFileLocation')] $location,
@@ -34,11 +42,10 @@ trait Download {
 		? string $key = null,
 		? string $iv = null
 	) : string {
-		$stream = openFile($path,'wb');
-		$percent = 0;
+		$partSizeKB = ($size < 0x80000 ? 128 : ($size < 0x100000 ? 256 : 512));
+		$limit = intval($size > 0 ? $partSizeKB : 1024) * 1024;
 		$offset = 0;
-		$limit = $this->getChuckSize($size);
-		$client = $this->switchDC(dc_id : $dc_id,media : true);
+		$client = $this->switchDC(dc_id : $dc_id,media : true,renew : true);
 		try {
 			$getFile = $client->upload->getFile(location : $location,offset : $offset,limit : $limit,cdn_supported : true,timeout : 10);
 		} catch(RpcError $error){
@@ -49,50 +56,60 @@ trait Download {
 				throw $error;
 			endif;
 		}
+		$stream = openFile($path,'wb');
+		$percent = 0;
 		Logging::log('Download','Start downloading the '.basename($path).' file ...');
 		if($getFile instanceof \Tak\Liveproto\Tl\Types\Upload\FileCdnRedirect):
-			$client = $this->switchDC(dc_id : $getFile->dc_id,cdn : true,media : true);
+			$client = $this->switchDC(dc_id : $getFile->dc_id,cdn : true,media : true,renew : true);
 			while($size > $offset or $size <= 0):
-				$getCdnFile = $client->upload->getCdnFile(file_token : $getFile->file_token,offset : $offset,limit : $limit,timeout : 10);
-				if($getCdnFile instanceof \Tak\Liveproto\Tl\Types\Upload\CdnFileReuploadNeeded):
+				$cdnFile = $client->upload->getCdnFile(file_token : $getFile->file_token,offset : $offset,limit : $limit,timeout : 10);
+				if($cdnFile instanceof \Tak\Liveproto\Tl\Types\Upload\CdnFileReuploadNeeded):
 					try {
-						$client->upload->reuploadCdnFile(file_token : $getFile->file_token,request_token : $getCdnFile->request_token);
+						$client->upload->reuploadCdnFile(file_token : $getFile->file_token,request_token : $cdnFile->request_token);
 						continue;
-					} catch(\Throwable $error){
+					} catch(Throwable $error){
+						Logging::log('Download Cdn',$error->getMessage(),E_ERROR);
 						break;
 					}
 				endif;
 				$key = $getFile->encryption_key;
 				$iv = substr($getFile->encryption_iv,0,-4).pack('N',$offset >> 4);
-				$bytes = openssl_decrypt($getCdnFile->bytes,'AES-256-CTR',$key,OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING,$iv);
+				$bytes = openssl_decrypt($cdnFile->bytes,'AES-256-CTR',$key,OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING,$iv);
 				$hashes = $client->upload->getCdnFileHashes(file_token : $getFile->file_token,offset : $offset);
 				foreach($hashes as $i => $value):
 					$hash = substr($bytes,$value->limit * $i,$value->limit);
 					assert($value->hash === hash('sha256',$hash,true),new Security('File validation failed !'));
 				endforeach;
-				$offset += strlen($getCdnFile->bytes);
+				$offset += strlen($cdnFile->bytes);
 				$stream->write($bytes);
 				if($size > 0):
 					$percent = min(100,($offset / $size) * 100);
 					if(is_null($progresscallback) === false):
 						if(async($progresscallback(...),$percent)->await() === false):
-							Logging::log('Download','Canceled !',E_WARNING);
-							throw new \RuntimeException('Download canceled !');
+							Logging::log('Download Cdn','Canceled !',E_WARNING);
+							throw new \RuntimeException('Download from Cdn canceled !');
 						endif;
 					else:
 						Logging::log('Download Cdn',$percent.'%');
 					endif;
 				endif;
-				if($limit > strlen($getCdnFile->bytes)) break;
+				if($limit > strlen($cdnFile->bytes)) break;
 			endwhile;
 		elseif($getFile instanceof \Tak\Liveproto\Tl\Types\Upload\File):
 			while($size > $offset or $size <= 0):
-				$getFile = $client->upload->getFile(location : $location,offset : $offset,limit : $limit,timeout : 10);
-				$offset += strlen($getFile->bytes);
-				if(is_null($key) === false and is_null($iv) === false):
-					$getFile->bytes = Aes::decrypt($getFile->bytes,$key,$iv);
-				endif;
-				$stream->write($getFile->bytes);
+				$requests = array();
+				for($i = 0;$i < $this->settings->getParallelDownloads();$i++):
+					$requests []= ['location'=>$location,'offset'=>$offset,'limit'=>$limit,'timeout'=>10];
+					$offset += $limit;
+				endfor;
+				$files = $client->upload->getFileMultiple(...$requests,responses : true);
+				foreach($files as $file):
+					if(is_null($key) === false and is_null($iv) === false):
+						$file->bytes = Aes::decrypt($file->bytes,$key,$iv);
+					endif;
+					$stream->write($file->bytes);
+					if($limit > strlen($file->bytes)) break 2;
+				endforeach;
 				if($size > 0):
 					$percent = min(100,($offset / $size) * 100);
 					if(is_null($progresscallback) === false):
@@ -104,7 +121,6 @@ trait Download {
 						Logging::log('Download',$percent.'%');
 					endif;
 				endif;
-				if($limit > strlen($getFile->bytes)) break;
 			endwhile;
 		endif;
 		if(is_null($progresscallback) === false and $percent != 100):
@@ -116,12 +132,13 @@ trait Download {
 		$stream->close();
 		try {
 			if(empty(pathinfo($path,PATHINFO_EXTENSION))):
-				$extension = $this->getFileExtension($getFile->type);
-				$extension = (empty($extension) ? $this->getFileExtension(mime_content_type($path)) : $extension);
-				$newpath = $path.chr(46).$extension;
-				move($path,$newpath);
+				$extension = ($this->getFileExtension($getFile->type) ?: $this->getFileExtension(strval(mime_content_type($path))));
+				if(empty($extension) === false):
+					$newpath = $path.chr(46).$extension;
+					move($path,$newpath);
+				endif;
 			endif;
-		} catch(\Throwable $error){
+		} catch(Throwable $error){
 			Logging::log('Download','I could not change the '.basename($path).' file extension ...');
 		}
 		Logging::log('Download','Finish downloading the '.basename($path).' file ...');
@@ -340,9 +357,9 @@ trait Download {
 			else:
 				return $this->download_profile_photo($path,$file,$progresscallback,$key,$iv);
 			endif;
-		} catch(\Throwable $e){
+		} catch(Throwable $e){
 			error_log($e->getMessage());
-			throw new \InvalidArgumentException('Invalid input media !');
+			throw new \InvalidArgumentException('Invalid input media !',$e->getCode(),$e);
 		}
 	}
 	protected function getPhotoSize(#[Type('PhotoSize')] object $photoSize) : int {
@@ -385,11 +402,7 @@ trait Download {
 		endwhile;
 		return $photo;
 	}
-	private function getChuckSize(int $size) : int {
-		$n = ceil(log(intdiv($size,0x1000) + 0x1,0x2));
-		return intval($n > 0x8 ? pow(0x400,0x2) : 0x1000 * pow(0x2,$n));
-	}
-	private function getFileExtension(object | string $type) : string {
+	private function getFileExtension(object | string $type) : ? string {
 		if(is_object($type)):
 			return match(true){
 				$type instanceof \Tak\Liveproto\Tl\Types\Storage\FileJpeg => 'jpeg',
@@ -400,7 +413,7 @@ trait Download {
 				$type instanceof \Tak\Liveproto\Tl\Types\Storage\FileMov => 'mov',
 				$type instanceof \Tak\Liveproto\Tl\Types\Storage\FileMp4 => 'mp4',
 				$type instanceof \Tak\Liveproto\Tl\Types\Storage\FileWebp => 'webp',
-				default => strval(null)
+				default => null
 			};
 		else:
 			return match(strtolower($type)){
@@ -533,7 +546,7 @@ trait Download {
 				'image/webp' => 'webp',
 				'application/zip' , 'application/x-zip-compressed' => 'zip',
 				'video/mp4' => 'mp4',
-				default => strval(null)
+				default => null
 			};
 		endif;
 	}

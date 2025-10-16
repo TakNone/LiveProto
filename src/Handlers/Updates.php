@@ -138,7 +138,9 @@ final class Updates {
 				$state->qts = $update->qts - $update->qts_count;
 				Logging::log('Updates','Initializing qts = '.$state->qts);
 			endif;
-			if($state->qts + $update->qts_count === $update->qts):
+			if($update->qts === 0):
+				Logging::log('Update Special Case','qts = 0');
+			elseif($state->qts + $update->qts_count === $update->qts):
 				Logging::log('Update Accepted','local qts = '.$state->qts.' (+) qts count = '.$update->qts_count.' (===) qts = '.$update->qts);
 				$state->qts = $update->qts;
 			elseif($state->qts + $update->qts_count > $update->qts):
@@ -230,6 +232,9 @@ final class Updates {
 					$this->setChannelPts($update->channel_id,$update->pts);
 				endif;
 				$this->recoveringChannel(channel_id : $update->channel_id,pts : $update->pts);
+				return;
+			case 'updateSentPhoneCode':
+				$this->client->apply_sent_code($update->sent_code);
 				return;
 			case 'updateMessageID':
 				return;
@@ -324,6 +329,7 @@ final class Updates {
 					array_map(fn(object $update) : mixed => async($this->applyUpdate(...),$update),$difference->other_updates);
 				endif;
 				delay(0.5);
+				Logging::log('New State','new pts = '.$newState->pts.' & new qts = '.$newState->qts.' & new date = '.$newState->date.' & new seq = '.$newState->seq);
 				$state->pts = $newState->pts;
 				$state->qts = $newState->qts;
 				$state->date = $newState->date;
@@ -359,10 +365,26 @@ final class Updates {
 			case 'updatesTooLong':
 				$this->recoveringGaps();
 				break;
+			# updateShort#78d4dec1 update:Update date:int = Updates; #
+			case 'updateShort':
+				$this->applyUpdate($update->update);
+				break;
+			# updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates; #
+			# updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates; #
+			case 'updatesCombined':
+			case 'updates':
+				$this->saveAccessHash($update);
+				$this->applyUpdate($update);
+				break;
 			# updateShortMessage#313bc7f8 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int user_id:long message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?long reply_to:flags.3?MessageReplyHeader entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
 			# updateShortChatMessage#4d6deea5 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int from_id:long chat_id:long message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?long reply_to:flags.3?MessageReplyHeader entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
 			case 'updateShortMessage':
 			case 'updateShortChatMessage':
+				/*
+				 * We need to get users & chats parameters to cache access hashes belonging to peers
+				 *
+				 * So if you have trouble getting the peers, just enable `autoCachePeers` in the settings
+				 */
 				# updateShortMessage#313bc7f8 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int user_id:long message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?long reply_to:flags.3?MessageReplyHeader entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
 				if(isset($update->user_id)):
 					$update->peer_id = new \Tak\Liveproto\Tl\Types\Other\PeerUser(['user_id'=>$update->user_id]);
@@ -375,20 +397,9 @@ final class Updates {
 				$newMessage = new \Tak\Liveproto\Tl\Types\Other\UpdateNewMessage(['message'=>$message,'pts'=>$update->pts,'pts_count'=>$update->pts_count]);
 				$this->applyUpdate($newMessage);
 				break;
-			# updateShort#78d4dec1 update:Update date:int = Updates; #
-			case 'updateShort':
-				$this->applyUpdate($update->update);
-				break;
-			# updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates; #
-			# updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates; #
-			case 'updatesCombined':
-			case 'updates':
-				$this->saveAccessHash($update);
-				$this->applyUpdate($update);
-				break;
 			# updateShortSentMessage#9015e101 flags:# out:flags.1?true id:int pts:int pts_count:int date:int media:flags.9?MessageMedia entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
 			case 'updateShortSentMessage':
-				Logging::log('Process Updates','I received updateShortSentMessage',E_NOTICE);
+				Logging::log('Process Updates','Received '.$update->getClass(),E_NOTICE);
 				$local_pts = intval($update->pts - $update->pts_count);
 				$difference = $this->client->updates->getDifference(pts : $local_pts,date : $update->date,pts_limit : $update->pts_count,qts : 0);
 				if(isset($difference->new_messages) and count($difference->new_messages) === $update->pts_count):

@@ -46,6 +46,25 @@ final class Settings {
 			case 'receiveupdates':
 				is_bool($value) || $value = true;
 				break;
+			case 'maxconnections':
+				is_int($value) || $value = 10;
+				$value = min(max($value,1),100);
+				break;
+			case 'minconnections':
+				is_int($value) || $value = 5;
+				$value = min(max($value,1),$this->maxConnections);
+				break;
+			case 'paralleldownloads':
+				is_int($value) || $value = 50;
+				$value = min(max($value,1),100);
+				break;
+			case 'paralleluploads':
+				is_int($value) || $value = 3;
+				$value = min(max($value,1),100);
+				break;
+			case 'autocachepeers':
+				is_bool($value) || $value = false;
+				break;
 			case 'ipv6':
 				is_bool($value) || $value = false;
 				break;
@@ -111,9 +130,11 @@ final class Settings {
 				break;
 			case 'dc':
 				is_int($value) || $value = 0;
+				$value = min(max($value,0),5);
 				break;
 			case 'savetime':
 				is_numeric($value) || $value = 0x3;
+				$value = min(max($value,1),60);
 				break;
 			case 'server':
 				is_string($value) || $value = 'localhost';

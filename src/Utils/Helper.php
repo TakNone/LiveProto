@@ -59,6 +59,8 @@ abstract class Helper {
 		foreach($ids as $id):
 			if(is_string($id)):
 				$id = self::unpack('P',substr(md5($id,true),0,8),Endianness::BIG);
+			else:
+				$id = intval($id);
 			endif;
 			$hash = $hash ^ ($hash >> 21) & ~ ( 1 << (8 * PHP_INT_SIZE - 1) >> 20);
 			$hash = $hash ^ ($hash << 35);

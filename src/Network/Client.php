@@ -92,15 +92,20 @@ final class Client extends Caller implements Stringable {
 			list($this->load->auth_key,$this->load->time_offset,$this->load->salt,$this->load->salt_valid_until) = $connect->authentication($this->load->dc,$this->session->testmode,isset($this->load->media_only),$expires_in);
 		endif;
 		$this->sender = new Sender($this->transport,$this->session,$this->handler,$this->transport->protocol instanceof \Tak\Liveproto\Network\Protocols\Http ? MTProtoKeepAlive::HTTP_LONG_POLL : ($origin ? MTProtoKeepAlive::PING_PONG : MTProtoKeepAlive::NONE));
-		if($origin):
+		$this->connected = true;
+		if($origin) $this->init();
+	}
+	public function init() : void {
+		if($this->connected):
 			$getConfig = $this->help->getConfig(raw : true);
-			$query = $this->initConnection(api_id : $this->load->api_id,device_model : $this->settings->devicemodel,system_version : $this->settings->systemversion,app_version : $this->settings->appversion,system_lang_code : $this->settings->systemlangcode,lang_pack : $this->settings->langpack,lang_code : $this->settings->langcode,proxy : $this->mtproxy,query : $getConfig,params : $this->settings->params,raw : true);
+			$query = $this->initConnection(api_id : $this->load->api_id,device_model : $this->settings->getDeviceModel(),system_version : $this->settings->getSystemVersion(),app_version : $this->settings->getAppVersion(),system_lang_code : $this->settings->getSystemLangCode(),lang_pack : $this->settings->getLangPack(),lang_code : $this->settings->getLangCode(),proxy : $this->mtproxy,query : $getConfig,params : $this->settings->getParams(),raw : true);
 			if($this->settings->receiveupdates === false):
 				$query = $this->invokeWithoutUpdates(query : $query,raw : true);
 			endif;
 			$this->config = $this->invokeWithLayer(layer : $this->layer(),query : $query);
+		else:
+			throw new \RuntimeException('You are not connected yet to init connection !');
 		endif;
-		$this->connected = true;
 	}
 	public function setDC(string $ip,int $port,int $id) : void {
 		list($this->load->ip,$this->load->port,$this->load->dc) = func_get_args();
@@ -125,11 +130,15 @@ final class Client extends Caller implements Stringable {
 			EventLoop::queue($lock->release(...));
 		}
 	}
-	public function switchDC(? int $dc_id = null,bool $cdn = false,bool $media = false,bool $tcpo = false,bool $next = false,int $expires_in = 0) : self {
+	public function switchDC(? int $dc_id = null,bool $cdn = false,bool $media = false,bool $tcpo = false,bool $next = false,bool $renew = false,int $expires_in = 0) : self {
+		/*
+		 * I needed to get new connections
 		if($this->load->dc === $dc_id and $cdn === false and $next === false and $expires_in === 0):
 			Logging::log('Client','There is no need to switch the data center , we use the same current data center');
 			return $this;
 		endif;
+		 * So I didn't need this part
+		 */
 		Logging::log('Client','Try switch dc ...');
 		$lock = $this->mutex->acquire();
 		try {
@@ -154,6 +163,7 @@ final class Client extends Caller implements Stringable {
 						else:
 							Logging::log('Client','I used old built clients ...');
 							$client = current($availableClients)->client;
+							if($renew) $client = clone $client;
 						endif;
 						if($is_authorized === false):
 							$importAuthorization = $client->auth->importAuthorization(id : $authorization->id,bytes : $authorization->bytes,raw : true);
@@ -183,6 +193,7 @@ final class Client extends Caller implements Stringable {
 			if($this->load->dc === $dc_id):
 				$client = $this->switchDC(dc_id : $dc_id,expires_in : $expires_in);
 				$this->sender->bindTempAuthKey(sender : $client->sender);
+				$client->init();
 				return $client;
 			else:
 				return $this->switchDC(dc_id : $dc_id)->getTemp($dc_id,$expires_in);
@@ -229,7 +240,7 @@ final class Client extends Caller implements Stringable {
 	public function fetchUpdate(array $updates,? callable $callback = null,float $timeout = 0) : object {
 		return $this->handler->fetchOneUpdate($updates,$callback,$timeout);
 	}
-	public function start() : void {
+	public function start(bool $run_until_disconnected = true) : void {
 		if($this->connected === true):
 			$this->disconnect();
 		endif;
@@ -284,9 +295,15 @@ final class Client extends Caller implements Stringable {
 		if($this->settings->takeout):
 			$this->takeoutid = $this->account->initTakeoutSession(...$this->settings->takeout)->id;
 		endif;
-		$this->handler->state($this->is_bot());
+		$bot = $this->is_bot();
+		$this->handler->state(reset : $bot);
+		if($this->settings->autoCachePeers):
+			iterator_to_array($bot ? $this->get_difference() : $this->get_dialogs());
+		endif;
 		gc_collect_cycles();
-		EventLoop::run();
+		if($run_until_disconnected):
+			EventLoop::run();
+		endif;
 	}
 	public function stop() : void {
 		if($this->takeoutid):
@@ -333,15 +350,15 @@ final class Client extends Caller implements Stringable {
 			'config'=>isset($this->config) ? $this->config : new \stdClass,
 			'dcOptions'=>$this->dcOptions,
 			'MTProxy'=>$this->mtproxy,
-			'deviceModel'=>$this->settings->devicemodel,
-			'systemVersion'=>$this->settings->systemversion,
-			'appVersion'=>$this->settings->appversion,
-			'systemLangCode'=>$this->settings->systemlangcode,
-			'langPack'=>$this->settings->langpack,
-			'langCode'=>$this->settings->langcode,
-			'hotReload'=>$this->settings->hotreload,
-			'floodSleepThreshold'=>$this->settings->floodsleepthreshold,
-			'receiveUpdates'=>$this->settings->receiveupdates,
+			'deviceModel'=>$this->settings->deviceModel,
+			'systemVersion'=>$this->settings->systemVersion,
+			'appVersion'=>$this->settings->appVersion,
+			'systemLangCode'=>$this->settings->systemLangCode,
+			'langPack'=>$this->settings->langPack,
+			'langCode'=>$this->settings->langCode,
+			'hotReload'=>$this->settings->hotReload,
+			'floodSleepThreshold'=>$this->settings->floodSleepThreshold,
+			'receiveUpdates'=>$this->settings->receiveUpdates,
 			'ipType'=>$this->settings->ipv6 ? 'ipv6' : 'ipv4',
 			'takeout'=>$this->settings->takeout,
 			'params'=>$this->settings->params,

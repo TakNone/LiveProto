@@ -59,16 +59,8 @@ trait Account {
 		$purpose = $this->email_purpose($email_purpose);
 		$verification = $this->emailVerificationCode(code : strval($code));
 		$result = $this->account->verifyEmail(purpose : $purpose,verification : $verification);
-		if($this->load->step === Authentication::NEED_EMAIL_VERIFY):
-			if($result instanceof \Tak\Liveproto\Tl\Types\Account\EmailVerifiedLogin):
-				if($result->sent_code instanceof \Tak\Liveproto\Tl\Types\Auth\SentCode):
-					$this->load->step = Authentication::NEED_CODE;
-				elseif($result->sent_code instanceof \Tak\Liveproto\Tl\Types\Auth\SentCodeSuccess):
-					$this->load->step = Authentication::LOGIN;
-				elseif($result->sent_code instanceof \Tak\Liveproto\Tl\Types\Auth\SentCodePaymentRequired):
-					$this->load->step = Authentication::NEED_CODE_PAYMENT_REQUIRED;
-				endif;
-			endif;
+		if($result instanceof \Tak\Liveproto\Tl\Types\Account\EmailVerifiedLogin):
+			$result->sent_code = $this->apply_sent_code($result->sent_code);
 		endif;
 		return $result;
 	}

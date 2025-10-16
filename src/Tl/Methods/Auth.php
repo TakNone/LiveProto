@@ -19,14 +19,11 @@ use Tak\Attributes\Common\Vector;
 use Tak\Attributes\Common\Is;
 
 trait Auth {
-	public function send_code(string $phone_number,mixed ...$settings) : object {
-		try {
-			$settings += ['logout_tokens'=>$this->load->logout_tokens];
-			$result = $this->auth->sendCode(phone_number : $phone_number,settings : $this->codeSettings(...$settings),api_id : $this->load->api_id,api_hash : $this->load->api_hash);
-			$this->load->phonenumber = $phone_number;
-			if($result instanceof \Tak\Liveproto\Tl\Types\Auth\SentCode):
+	protected function apply_sent_code(#[Type('auth.SentCode')] object $result) : object {
+		switch($result->getClass()):
+			case 'auth.sentCode':
 				if(empty($result->phone_code_hash) and isset($this->load->phonecodehash)):
-					$result = $this->resend_code();
+					return $this->resend_code();
 				endif;
 				$this->load->phonecodehash = $result->phone_code_hash;
 				if($result->type instanceof \Tak\Liveproto\Tl\Types\Auth\SentCodeTypeSetUpEmailRequired):
@@ -34,12 +31,21 @@ trait Auth {
 				else:
 					$this->load->step = Authentication::NEED_CODE;
 				endif;
-			elseif($result instanceof \Tak\Liveproto\Tl\Types\Auth\SentCodeSuccess):
+				return $result;
+			case 'auth.sentCodeSuccess':
 				$this->load->step = Authentication::LOGIN;
-			elseif($result instanceof \Tak\Liveproto\Tl\Types\Auth\SentCodePaymentRequired):
+				return $result;
+			case 'auth.sentCodePaymentRequired':
 				$this->load->step = Authentication::NEED_CODE_PAYMENT_REQUIRED;
-			endif;
-			return $result;
+				return $result;
+		endswitch;
+	}
+	public function send_code(string $phone_number,mixed ...$settings) : object {
+		try {
+			$settings += ['logout_tokens'=>$this->load->logout_tokens];
+			$result = $this->auth->sendCode(phone_number : $phone_number,settings : $this->codeSettings(...$settings),api_id : $this->load->api_id,api_hash : $this->load->api_hash);
+			$this->load->phonenumber = $phone_number;
+			return $this->apply_sent_code($result);
 		} catch(RpcError $error){
 			if($error->getCode() == 303):
 				$this->changeDC($error->getValue());
@@ -108,20 +114,25 @@ trait Auth {
 				endif;
 			}
 		else:
-			throw new \Exception('One of the code / password / token parameters must be entered in the sign in function !');
+			throw new \LogicException('One of the code / password / bot_token / web_token parameters must be entered in the sign_in method !');
 		endif;
 		$this->save_authorization($result);
 		return $result;
 	}
 	public function resend_code() : object {
 		$result = $this->auth->resendCode(phone_number : $this->load->phonenumber,phone_code_hash : $this->load->phonecodehash);
-		$this->load->step = Authentication::NEED_CODE;
-		return $result;
+		return $this->apply_sent_code($result);
 	}
 	public function cancel_code() : bool {
 		$result = $this->auth->cancelCode(phone_number : $this->load->phonenumber,phone_code_hash : $this->load->phonecodehash);
-		$this->load->step = Authentication::NEED_AUTHENTICATION;
+		if($result):
+			$this->load->step = Authentication::NEED_AUTHENTICATION;
+		endif;
 		return $result;
+	}
+	public function reset_login_email() : bool {
+		$result = $this->auth->resetLoginEmail(phone_number : $this->load->phonenumber,phone_code_hash : $this->load->phonecodehash);
+		return $this->apply_sent_code($result);
 	}
 	public function firebase_sms(? string $safety = null,? string $push = null) : bool {
 		if(is_null($safety) and is_null($push)):

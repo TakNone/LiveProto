@@ -65,7 +65,25 @@ final class Session {
 				$server = $this->servers[array_rand($this->servers)];
 			endif;
 		endif;
-		return new Content(['id'=>0,'api_id'=>0,'api_hash'=>(string) null,'dc'=>$server['dc'],'ip'=>($this->ipv6 ? $server['ipv6'] : $server['ip']),'port'=>$server['port'],'auth_key'=>new \stdClass,'expires_at'=>0,'salt'=>0,'salt_valid_until'=>0,'sequence'=>0,'time_offset'=>0,'last_msg_id'=>0,'logout_tokens'=>[],'peers'=>new CachedPeers($this->name),'state'=>(object) array('pts'=>1,'qts'=>-1,'date'=>1,'seq'=>0),'step'=>Authentication::NEED_AUTHENTICATION],$this->savetime);
+		return new Content([
+			'id'=>0,
+			'api_id'=>0,
+			'api_hash'=>(string) null,
+			'dc'=>$server['dc'],
+			'ip'=>($this->ipv6 ? $server['ipv6'] : $server['ip']),
+			'port'=>$server['port'],
+			'auth_key'=>new \stdClass,
+			'expires_at'=>0,
+			'salt'=>0,
+			'salt_valid_until'=>0,
+			'sequence'=>0,
+			'time_offset'=>0,
+			'last_msg_id'=>0,
+			'logout_tokens'=>array(),
+			'peers'=>new CachedPeers($this->name),
+			'state'=>(object) array('pts'=>1,'qts'=>-1,'date'=>1,'seq'=>0),
+			'step'=>Authentication::NEED_AUTHENTICATION
+		],$this->savetime);
 	}
 	public function load() : object {
 		if(isset($this->content)):

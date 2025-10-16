@@ -51,7 +51,7 @@ trait SecretChat {
 		int $ttl
 	) : object {
 		list($file,$key,$iv) = $this->upload_secret_file($path);
-		$mime = mime_content_type($path);
+		$mime = strval(mime_content_type($path));
 		if(str_starts_with($mime,'image')):
 			list($width,$height) = getimagesize($path);
 			$media = $this->secret->decryptedMessageMediaPhoto(thumb : strval(null),thumb_w : 0,thumb_h : 0,w : $width,h : $height,size : getSize($path),key : $key,iv : $iv,caption : $caption);

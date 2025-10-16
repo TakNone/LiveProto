@@ -35,9 +35,9 @@ final class NewJoinRequest extends Filter {
 				throw new \Exception('The update does not contain a valid peer id');
 			}
 		};
-		$event->respond = function(string $message,mixed ...$args) use($event) : object {
+		$event->respond = function(mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();
-			return $event->getClient()->messages->sendMessage($peer,$message,random_int(PHP_INT_MIN,PHP_INT_MAX),...$args);
+			return $event->send_content($peer,...$args);
 		};
 		$event->hideRequest = function(? true $approved = null,bool $all = false,...$args) use($event) : object {
 			$peer = $event->getPeer();

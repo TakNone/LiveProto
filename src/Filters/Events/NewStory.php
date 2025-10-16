@@ -33,17 +33,19 @@ final class NewStory extends Filter {
 				throw new \Exception('The update does not contain a valid peer id');
 			}
 		};
-		$event->respond = function(string $message,mixed ...$args) use($event) : object {
+		$event->respond = function(mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();
-			return $event->getClient()->messages->sendMessage($peer,$message,random_int(PHP_INT_MIN,PHP_INT_MAX),...$args);
+			return $event->send_content($peer,...$args);
 		};
-		$event->reply = function(string $message,array $reply_to = array(),mixed ...$args) use($event) : object {
-			$peer = $event->getPeer();
+		$event->reply = function(mixed ...$args) use($event) : object {
+			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
 			$args += ['reply_to'=>$event->inputReplyToStory($peer,$event->story->id,...$reply_to)];
-			return $event->getClient()->messages->sendMessage($peer,$message,random_int(PHP_INT_MIN,PHP_INT_MAX),...$args);
+			$peer = $event->getPeer();
+			return $event->send_content($peer,...$args);
 		};
-		$event->forward = function(mixed $peer,array $reply_to = array(),mixed ...$args) use($event) : object {
-			$args += ['reply_to'=>(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
+		$event->forward = function(mixed $peer,mixed ...$args) use($event) : object {
+			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
+			$args += empty($reply_to) ? [] : ['reply_to'=>(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			$to = $event->get_input_peer($peer);
 			$peer = $event->getPeer();
 			$media = $event->inputMediaStory(peer : $peer,id : $event->story->id);

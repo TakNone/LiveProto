@@ -42,7 +42,7 @@ final class CachedPeers {
 				$this->connection->setPeer($this->name.chr(95).strtoupper($type),Tools::marshal($peer));
 			endforeach;
 		else:
-			$this->datas[$type] += $peers;
+			$this->datas[$type] = array_unique(array_merge($peers,$this->datas[$type]),SORT_REGULAR);
 		endif;
 	}
 	public function deletePeer(string $type,string $by,mixed $what) : void {

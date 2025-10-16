@@ -29,6 +29,11 @@ $settings->setLangCode('en-US');
 $settings->setHotReload(false);
 $settings->setFloodSleepThreshold(120);
 $settings->setReceiveUpdates(false);
+$settings->setMaxConnections(10);
+$settings->setMinConnections(5);
+$settings->setParallelDownloads(50);
+$settings->setParallelUploads(3);
+$settings->setAutoCachePeers(false);
 $settings->setIPv6(true);
 $settings->setTestMode(false);
 $settings->setDC(1);
@@ -143,6 +148,53 @@ If you encounter a FLOOD error, and if it is less than the set value, it will re
 - Default : `True`
 
 If this parameter is set to false,use invokeWithoutUpdates(query = initConnection), If you give false value, your session will no longer receive updates
+
+## Max Connections
+
+- Type : `Integer` <kbd>optional</kbd>
+- Default : `10`
+
+Specifies the maximum number of connections for the media
+
+!> Increasing the number of connections only helps in cases where the client is trying to upload or download multiple files at the same time
+
+## Min Connections
+
+- Type : `Integer` <kbd>optional</kbd>
+- Default : `5`
+
+!> Try not to lower it too much as you may experience problems with upload speed and media upload
+
+Minimum number of connections required for media connections
+
+## Parallel Downloads
+
+- Type : `Integer` <kbd>optional</kbd>
+- Default : `50`
+
+The number of requests sent simultaneously to download the file
+
+!> Increasing it does not always mean increasing download speed and may cause problems
+
+## Parallel Uploads
+
+- Type : `Integer` <kbd>optional</kbd>
+- Default : `3`
+
+The number of requests sent simultaneously to upload the file
+
+!> Increasing it may significantly increase resource consumption, but may also increase upload speed
+
+## Auto Cache Peers
+
+- Type : `Boolean` <kbd>optional</kbd>
+- Default : `False`
+
+If true, the client initially caches all peers each time so that there is no gap in finding peers
+
+?> I personally recommend enabling this for userbots
+
+!> For bots, the process may take a long time due to the large number of updates. First make sure then try to enable it
 
 ## IPv6
 

@@ -159,7 +159,7 @@ trait Media {
 			# inputMediaUploadedPhoto#1e287d04 flags:# spoiler:flags.2?true file:InputFile stickers:flags.0?Vector<InputDocument> ttl_seconds:flags.1?int = InputMedia; #
 			FileType::PHOTO => $this->inputMediaUploadedPhoto($inputFile,...$arguments),
 			# inputMediaUploadedDocument#37c9330 flags:# nosound_video:flags.3?true force_file:flags.4?true spoiler:flags.5?true file:InputFile thumb:flags.2?InputFile mime_type:string attributes:Vector<DocumentAttribute> stickers:flags.0?Vector<InputDocument> video_cover:flags.6?InputPhoto video_timestamp:flags.7?int ttl_seconds:flags.1?int = InputMedia; #
-			default => $this->inputMediaUploadedDocument($inputFile,mime_content_type($path),array($this->documentAttributeFilename(file_name : basename($path))),...$arguments)
+			default => $this->inputMediaUploadedDocument($inputFile,strval(mime_content_type($path)),...array_merge(['attributes'=>array($this->documentAttributeFilename(file_name : basename($path)))],$arguments))
 		};
 	}
 	public function decode_vector_thumbnail(string $bytes) : string {

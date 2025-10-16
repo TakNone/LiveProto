@@ -17,6 +17,7 @@ use Stringable;
 /*
  * A client must never mark msgs_ack, msg_container, msg_copy, gzip_packed constructors (i.e. containers and acknowledgements) as content-related, or else a bad_msg_notification with error_code=34 will be emitted
  * [contentRelated = false]
+ * [sequence % 2 === 1]
  */
 
 class MTRequest implements Stringable {
@@ -98,17 +99,17 @@ class MTRequest implements Stringable {
 		$message->write($packet);
 		return $message->read();
 	}
-	static public function fromMessage(Binary $message) : string {
+	static public function fromMessage(Binary $message) : self {
 		# message msg_id:long seqno:int bytes:int body:Object = Message; #
 		$msg_id = $message->readLong();
 		$seqno = $message->readInt();
 		$packetLength = $message->readInt();
 		$packet = $message->read($packetLength);
 		$body = new Binary();
-		$body->writeLong($packet);
+		$body->write($packet);
 		return new self($body,messageId : $msg_id,sequence : $seqno);
 	}
-	public function getDeferred(bool $lazyInit = true) : DeferredFuture {
+	public function getDeferred(bool $lazyInit = true) : ? DeferredFuture {
 		$this->deferred = boolval($lazyInit and is_null($this->deferred)) ? new DeferredFuture : $this->deferred;
 		return $this->deferred;
 	}

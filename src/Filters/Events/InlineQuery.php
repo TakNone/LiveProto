@@ -33,9 +33,9 @@ final class InlineQuery extends Filter {
 				throw new \Exception('The update does not contain a valid peer id');
 			}
 		};
-		$event->respond = function(string $message,mixed ...$args) use($event) : object {
+		$event->respond = function(mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();
-			return $event->getClient()->messages->sendMessage($peer,$message,random_int(PHP_INT_MIN,PHP_INT_MAX),...$args);
+			return $event->send_content($peer,...$args);
 		};
 		$event->answerInline = function(array $results,int $cache,? string $switch_text = null,? string $switch_url = null,? string $start_param = null,mixed ...$args) use($event) : bool {
 			if(is_null($switch_text) === false or is_null($switch_url) === false or is_null($start_param) === false):

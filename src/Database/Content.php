@@ -11,14 +11,12 @@ use ArrayAccess;
 final class Content implements ArrayAccess {
 	protected string $pending;
 	protected bool $cloned;
-	protected float $savetime;
 	protected float $lastsave;
 	protected Session $session;
 
-	public function __construct(public array $data,? float $savetime = null,? float $lastsave = null){
+	public function __construct(public array $data,protected float $savetime){
 		$this->cloned = false;
-		$this->savetime = is_null($savetime) === false ? $savetime : 1;
-		$this->lastsave = is_null($lastsave) === false ? $lastsave : microtime(true);
+		$this->lastsave = microtime(true);
 		register_shutdown_function(fn() : null => $this->save(true));
 	}
 	public function setSession(Session $session) : self {
