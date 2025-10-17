@@ -206,7 +206,7 @@ final class Updates {
 				endif;
 			endif;
 		} catch(\Throwable $error){
-			Logging::log('Updates','An encrypted update was skipped ! '.$error->getMessage(),E_WARNING);
+			Logging::log('Updates','An encrypted update was skipped : '.$error->getMessage(),E_WARNING);
 			return;
 		}
 		/* TODO : Add separate handlers to manage updates related to phone calls */
@@ -346,18 +346,23 @@ final class Updates {
 		$this->channelsPts[$channel_id] = $pts;
 	}
 	public function recoveringChannel(int $channel_id,? int $pts = null) : void {
-		$pts ??= $this->getChannelPts($channel_id);
-		$differences = $this->client->get_channel_difference(channel : $channel_id,pts : $pts);
-		foreach($differences as $difference):
-			if(isset($difference->new_messages)):
-				array_map(fn(object $newChannelMessage) : mixed => async($this->applyUpdate(...),new \Tak\Liveproto\Tl\Types\Other\UpdateNewChannelMessage(['message'=>$newChannelMessage])),$difference->new_messages);
-			endif;
-			if(isset($difference->other_updates)):
-				array_map(fn(object $update) : mixed => async($this->applyUpdate(...),$update),$difference->other_updates);
-			endif;
-			delay(0.5);
-			$this->setChannelPts($channel_id,$difference->pts);
-		endforeach;
+		try {
+			$pts ??= $this->getChannelPts($channel_id);
+			$differences = $this->client->get_channel_difference(channel : $channel_id,pts : $pts);
+			foreach($differences as $difference):
+				if(isset($difference->new_messages)):
+					array_map(fn(object $newChannelMessage) : mixed => async($this->applyUpdate(...),new \Tak\Liveproto\Tl\Types\Other\UpdateNewChannelMessage(['message'=>$newChannelMessage])),$difference->new_messages);
+				endif;
+				if(isset($difference->other_updates)):
+					array_map(fn(object $update) : mixed => async($this->applyUpdate(...),$update),$difference->other_updates);
+				endif;
+				delay(0.5);
+				$this->setChannelPts($channel_id,$difference->pts);
+			endforeach;
+		} catch(\Throwable $error){
+			$this->setChannelPts($channel_id,1);
+			Logging::log('Updates','Channel '.$channel_id.' updates not being retrieved : '.$error->getMessage(),E_WARNING);
+		}
 	}
 	public function processUpdate(object $update) : void {
 		switch($update->getClass()):

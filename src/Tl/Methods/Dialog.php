@@ -168,7 +168,7 @@ trait Dialog {
 		int $pts = 1,
 		int $limit = 0x7fffffff
 	) : \Generator {
-		$inputChannel = $this->get_input_peer($channel);
+		$inputChannel = $this->get_input_channel($channel);
 		while(true):
 			Logging::log('Channel Difference','pts = '.$pts.' & limit = '.$limit.' & channel id = '.$this->get_peer_id($inputChannel));
 			$difference = $this->updates->getChannelDifference(channel : $inputChannel,filter : is_null($filter) ? $this->channelMessagesFilterEmpty() : $filter,pts : $pts,limit : $limit,force : true);

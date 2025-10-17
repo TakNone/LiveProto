@@ -203,7 +203,7 @@ final class Properties {
 				endif;
 			endforeach;
 			extract($filtered);
-			if(isset($arguments['takeout'])):
+			if(array_key_exists('takeout',$arguments)):
 				if($arguments['takeout'] === true):
 					unset($arguments['takeout']);
 					$arguments['raw'] = true;
@@ -213,7 +213,7 @@ final class Properties {
 					unset($arguments['takeout']);
 				endif;
 			endif;
-			if(isset($arguments['receiveUpdates'])):
+			if(array_key_exists('receiveUpdates',$arguments)):
 				if($arguments['receiveUpdates'] === false):
 					unset($arguments['receiveUpdates']);
 					$arguments['raw'] = true;
@@ -223,7 +223,7 @@ final class Properties {
 					unset($arguments['receiveUpdates']);
 				endif;
 			endif;
-			if(isset($arguments['afterId'])):
+			if(array_key_exists('afterId',$arguments)):
 				if(is_numeric($arguments['afterId'])):
 					$afterId = intval($arguments['afterId']);
 					unset($arguments['afterId']);
@@ -234,7 +234,7 @@ final class Properties {
 					unset($arguments['afterId']);
 				endif;
 			endif;
-			if(isset($arguments['businessConnectionId'])):
+			if(array_key_exists('businessConnectionId',$arguments)):
 				if(empty($arguments['businessConnectionId']) === false):
 					$businessConnectionId = strval($arguments['businessConnectionId']);
 					unset($arguments['businessConnectionId']);
