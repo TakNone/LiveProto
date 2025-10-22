@@ -36,6 +36,8 @@ use Amp\Sync\LocalMutex;
 
 use Revolt\EventLoop;
 
+use RuntimeException;
+
 use Throwable;
 
 final class Sender {
@@ -157,7 +159,7 @@ final class Sender {
 				$try--;
 			}
 		} while($try > 0 and $code === 400);
-		throw new \RuntimeException('Failed to create a temporary client !',$code,$error);
+		throw new RuntimeException('Failed to create a temporary client !',$code,$error);
 	}
 	public function receive(MTRequest $request) : mixed {
 		$future = $request->getDeferred()->getFuture();
@@ -224,6 +226,9 @@ final class Sender {
 				Logging::log('Security',$error->getMessage(),E_NOTICE);
 			} catch(TransportError $error){
 				Logging::log('Transport Error',$error->getMessage(),E_ERROR);
+			} catch(RuntimeException $error){
+				Logging::log('Connection Error',$error->getMessage(),E_ERROR);
+				$this->close();
 			} catch(Throwable $error){
 				Logging::log('Receive Packet',$error->getMessage(),E_WARNING);
 				$this->ping();

@@ -558,7 +558,6 @@ final class Interfaces {
 					return true;
 			endswitch;
 		} catch(\Throwable $error){
-			error_log(var_export($error,true));
 			Logging::log('Interfaces',$error->getMessage(),E_ERROR);
 			$update->is_custom = $isCustom;
 			return false;

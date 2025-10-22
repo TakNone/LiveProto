@@ -37,7 +37,7 @@ final class TcpClient {
 		elseif(filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)):
 			$uri = sprintf('tcp://%s:%d',$ip,$port);
 		else:
-			throw new \Exception('Invalid IP !');
+			throw new \InvalidArgumentException('Invalid IP !');
 		endif;
 		if(is_null($proxy)):
 			$this->socket = connect($uri,$this->context);
@@ -59,7 +59,7 @@ final class TcpClient {
 					$this->socket = $tls->exchange($this->socket);
 				endif;
 			else:
-				throw new \Exception('Invalid proxy type !');
+				throw new \OutOfRangeException('Proxy type '.$proxy['type'].' is out of supported range : socks4 , socks5 , http , mtproxy');
 			endif;
 		endif;
 		$this->socket->setChunkSize(PHP_INT_MAX);
@@ -77,7 +77,7 @@ final class TcpClient {
 		elseif($this->connected):
 			$this->socket->write($data);
 		else:
-			throw new \Exception('First you need to connect to the server !');
+			throw new \RuntimeException('First you need to connect to the server !');
 		endif;
 	}
 	public function read(int $size,int $timeout = 60) : string {
@@ -89,7 +89,7 @@ final class TcpClient {
 			elseif($this->connected):
 				$result .= $this->socket->read($cancellation,$size - strlen($result));
 			else:
-				throw new \Exception('First you need to connect to the server !');
+				throw new \RuntimeException('First you need to connect to the server !');
 			endif;
 		endwhile;
 		return $result;

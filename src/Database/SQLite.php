@@ -71,7 +71,7 @@ final class SQLite implements AbstractDB , AbstractPeers {
 		else:
 			$this->connection->exec(
 				'CREATE TABLE IF NOT EXISTS '.$table.' (
-				`id` INTEGER PRIMARY KEY
+				`id` BIGINT PRIMARY KEY
 				)'
 			);
 			return true;

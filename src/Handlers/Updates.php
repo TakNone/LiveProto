@@ -419,10 +419,12 @@ final class Updates {
 				Logging::log('Process Updates','Unknown update : '.$update->getClass(),E_ERROR);
 		endswitch;
 	}
+	# https://core.telegram.org/api/peers #
+	# https://core.telegram.org/api/min #
 	public function saveAccessHash(object $update) : void {
-		$chats = $update->chats;
+		$chats = array_filter($update->chats,fn(mixed $peer) : bool => isset($peer->min) === false || $peer->min === false);
 		$this->load->peers->setPeers(type : 'chats',peers : array_map(fn(mixed $peer) : array => array('id'=>$peer->id,'access_hash'=>intval($peer->access_hash)),$chats));
-		$users = $update->users;
+		$users = array_filter($update->users,fn(mixed $peer) : bool => isset($peer->min) === false || $peer->min === false);
 		$this->load->peers->setPeers(type : 'users',peers : array_map(fn(mixed $peer) : array => array('id'=>$peer->id,'access_hash'=>intval($peer->access_hash)),$users));
 	}
 	public function __debugInfo() : array {

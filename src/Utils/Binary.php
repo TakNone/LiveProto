@@ -212,9 +212,14 @@ final class Binary implements Stringable {
 	}
 	public function __toString() : string {
 		try {
-			$constructorId = $this->readInt();
-			$this->undo();
-			return All::getConstructor($constructorId)->getClass();
+			$remaining = $this->tellLength() - $this->tellPosition();
+			if($remaining > 4):
+				$constructorId = $this->readInt();
+				$this->undo();
+				return All::getConstructor($constructorId)->getClass();
+			else:
+				return strval(null);
+			endif;
 		} catch(\Throwable){
 			return strval($constructorId);
 		}
