@@ -4,7 +4,7 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.0.19   | :white_check_mark: |
+| 0.0.18   | :white_check_mark: |
 | < 0.0.17   | :x:                |
 
 ## Reporting a Vulnerability
@@ -16,4 +16,3 @@ Hey there 👋 , thanks for helping make [LiveProto](https://github.com/TakNone/
  - Telegram : https://TakNone.t.me
 
  - Email : MrTakNone@gmail.com
- 
