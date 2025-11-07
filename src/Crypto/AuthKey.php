@@ -6,12 +6,12 @@ namespace Tak\Liveproto\Crypto;
 
 use Tak\Liveproto\Utils\Binary;
 
-final class AuthKey {
+readonly final class AuthKey {
 	public string $key;
 	public int $auxHash;
 	public int $id;
 
-	public function __construct(string $gab,public readonly int $expires_at){
+	public function __construct(string $gab,public int $expires_at){
 		$this->key = gmp_export($gab);
 		$reader = new Binary();
 		$reader->write(sha1($this->key,true));

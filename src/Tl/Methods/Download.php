@@ -339,6 +339,7 @@ trait Download {
 	public function download_media(
 		string $path,
 		object $file,
+		bool $thumb = false,
 		? callable $progresscallback = null,
 		? string $key = null,
 		? string $iv = null
@@ -349,7 +350,7 @@ trait Download {
 			elseif($file instanceof \Tak\Liveproto\Tl\Types\Other\WebDocument or $file instanceof \Tak\Liveproto\Tl\Types\Other\WebDocumentNoProxy):
 				return $this->download_web_document($path,$file);
 			elseif($file instanceof \Tak\Liveproto\Tl\Types\Other\MessageMediaDocument or $file instanceof \Tak\Liveproto\Tl\Types\Other\Document):
-				return $this->download_document($path,$file,$progresscallback,$key,$iv);
+				return $this->download_document($path,$thumb,$file,$progresscallback,$key,$iv);
 			elseif($file instanceof \Tak\Liveproto\Tl\Types\Other\MessageMediaPhoto or $file instanceof \Tak\Liveproto\Tl\Types\Other\Photo):
 				return $this->download_photo($path,$file,$progresscallback,$key,$iv);
 			elseif($file instanceof \Tak\Liveproto\Tl\Types\Other\UpdateNewEncryptedMessage or $file instanceof \Tak\Liveproto\Tl\Types\Secret\DecryptedMessage or $file instanceof \Tak\Liveproto\Tl\Types\Other\EncryptedFile):

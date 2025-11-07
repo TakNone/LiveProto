@@ -46,9 +46,9 @@ final class Client extends Caller implements Stringable {
 	protected LocalMutex $mutex;
 	public readonly Updates $handler;
 	protected ? object $locker;
-	public array $dcOptions;
 	public ? object $mtproxy;
 	public object $config;
+	public array $dcOptions;
 	public bool $connected = false;
 	public int $takeoutid = 0;
 
@@ -75,7 +75,7 @@ final class Client extends Caller implements Stringable {
 			$this->load->api_hash = $settings->getApiHash();
 		endif;
 		$this->mutex = new LocalMutex;
-		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$this->load->dc,'ip_address'=>$this->load->ip,'port'=>$this->load->port,'client'=>$this,'expires_at'=>0]));
+		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$this->load->dc,'ip_address'=>$this->load->ip,'port'=>$this->load->port,'client'=>$this,'expires_at'=>$this->load->expires_at]));
 		$proxy = $this->settings->getProxy();
 		$this->mtproxy = (is_null($proxy) === false and strtoupper($proxy['type']) === 'MTPROXY') ? $this->inputClientProxy(address : parse_url($proxy['address'],PHP_URL_HOST),port : parse_url($proxy['address'],PHP_URL_PORT)) : null;
 	}
@@ -109,9 +109,13 @@ final class Client extends Caller implements Stringable {
 	}
 	public function setDC(string $ip,int $port,int $id) : void {
 		list($this->load->ip,$this->load->port,$this->load->dc) = func_get_args();
+		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$id,'ip_address'=>$ip,'port'=>$port,'client'=>$this,'expires_at'=>$this->load->expires_at]));
 	}
 	public function changeDC(int $dc_id) : void {
 		Logging::log('Client','Try change dc ...');
+		if(isset($this->config) === false):
+			throw new \RuntimeException('To change the datacenter , `init` needs to be called and executed first !');
+		endif;
 		$lock = $this->mutex->acquire();
 		try {
 			foreach($this->config->dc_options as $dc):
@@ -140,6 +144,9 @@ final class Client extends Caller implements Stringable {
 		 * So I didn't need this part
 		 */
 		Logging::log('Client','Try switch dc ...');
+		if(isset($this->config) === false):
+			throw new \RuntimeException('To switch the datacenter , `init` needs to be called and executed first !');
+		endif;
 		$lock = $this->mutex->acquire();
 		try {
 			foreach($this->config->dc_options as $dc):
@@ -162,8 +169,12 @@ final class Client extends Caller implements Stringable {
 							$dc->client = $client;
 						else:
 							Logging::log('Client','I used old built clients ...');
-							$client = current($availableClients)->client;
-							if($renew) $client = clone $client;
+							$dcOption = current($availableClients);
+							$client = $dcOption->client;
+							if($renew):
+								$client->dcOptions []= $dcOption;
+								$client = clone $client;
+							endif;
 						endif;
 						if($is_authorized === false):
 							$importAuthorization = $client->auth->importAuthorization(id : $authorization->id,bytes : $authorization->bytes,raw : true);
@@ -317,16 +328,18 @@ final class Client extends Caller implements Stringable {
 		endif;
 	}
 	private function runInBackground() : void {
-		if(Tools::isCli() === false and headers_sent() === false):
-			http_response_code(200);
+		if(Tools::isCli() === false):
+			headers_sent() || http_response_code(200);
 			if(is_callable('litespeed_finish_request')):
 				litespeed_finish_request();
 			elseif(is_callable('fastcgi_finish_request')):
 				fastcgi_finish_request();
 			else:
 				ignore_user_abort(true);
-				header('Connection: close');
-				header('Content-Type: text/html');
+				if(headers_sent() === false):
+					header('Content-Type: text/html');
+					header('Connection: close');
+				endif;
 				@ob_end_flush();
 				@flush();
 			endif;
@@ -370,9 +383,9 @@ final class Client extends Caller implements Stringable {
 		$this->load = $this->session->load();
 		$dc = end($this->dcOptions);
 		$reAuthentication = boolval($this->load->dc !== $dc->id || boolval($dc->expires_at > time()));
-		$this->setDC($dc->ip_address,$dc->port,$dc->id);
 		$this->load->media_only = $dc->media_only ? true : null;
 		$this->load->expires_at = $dc->expires_at;
+		$this->setDC($dc->ip_address,$dc->port,$dc->id);
 		$this->connect(reset : $reAuthentication,origin : false);
 	}
 	public function __destruct(){

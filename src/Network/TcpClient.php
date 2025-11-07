@@ -87,7 +87,13 @@ final class TcpClient {
 			if($this->socket->isClosed()):
 				throw new \RuntimeException('The connection was completely closed !');
 			elseif($this->connected):
-				$result .= $this->socket->read($cancellation,$size - strlen($result));
+				$buffer = $this->socket->read($cancellation,$size - strlen($result));
+				if(is_null($buffer) === false):
+					$result .= $buffer;
+				else:
+					$this->close();
+					throw new \RuntimeException('Connection closed by remote host ( EOF ) !');
+				endif;
 			else:
 				throw new \RuntimeException('First you need to connect to the server !');
 			endif;

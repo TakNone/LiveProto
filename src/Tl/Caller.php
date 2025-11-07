@@ -248,7 +248,7 @@ final class Properties {
 			$request = new $class($arguments);
 			if($raw):
 				return $request;
-			else:
+			elseif($this->connected):
 				$mtRequest = new MTRequest($request,messageId : $messageid,identifier : $identifier,timeout : $timeout);
 				$this->sender->send($mtRequest);
 				try {
@@ -268,6 +268,8 @@ final class Properties {
 					$result->extra = $extra;
 				endif;
 				return $result;
+			else:
+				throw new \RuntimeException('You are not yet connected to send a request !');
 			endif;
 		elseif($class = $this->createObject('Tak\\Liveproto\\Tl\\Types\\'.ucfirst($this->property).'\\'.ucfirst($name))):
 			return new $class($arguments);

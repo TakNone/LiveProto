@@ -830,6 +830,9 @@ Usable by :
 - file(<small>object</small>) <kbd style="color : red">required</kbd> :
   - Media object ( photo , document , contact , ... )
 
+- thumb(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
+  - Whether to download the document thumbnail instead of full document
+
 - progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Callback for download progress
 
