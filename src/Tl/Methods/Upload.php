@@ -41,7 +41,7 @@ trait Upload {
 			$isBig = ($size > 0xa00000);
 			$progress = 0;
 			$md5 = hash_init('md5');
-			$connections = $this->getMediaConnections(dc_id : $this->load->dc,count : match(true){
+			$connections = $this->getMediaConnections(dc_id : $this->load->dc,pfs : false,count : match(true){
 				boolval($size >= 10 * 1024 * 1024 and $size < 25 * 1024 * 1024) => 2,
 				boolval($size >= 25 * 1024 * 1024 and $size < 50 * 1024 * 1024) => 3,
 				boolval($size >= 50 * 1024 * 1024 and $size < 100 * 1024 * 1024) => 4,

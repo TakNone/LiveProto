@@ -39,9 +39,7 @@
   - <kbd>int $dc_id</kbd> , target DC ID
   - <kbd>int $expires_in</kbd> , TTL ( in seconds ) of the temporary auth settings
 
-- `checkAuthorization` => <kbd>bool</kbd> : Checks if the client is authorized on a DC
-
-  - <kbd>int $dc_id</kbd> , the DC ID to verify
+- `cleanAuthorizations` => <kbd>void</kbd> : Deletes connections that have expired
 
 - `getAuthorizations` => <kbd>array</kbd> : Returns all active authorizations
 
@@ -50,10 +48,6 @@
 - `isAuthorized` => <kbd>bool</kbd> : Returns whether the client is currently authorized ( `Authentication::LOGIN` )
 
 - `getStep` => <kbd>Authentication</kbd> : Returns the current [authentication step](en/enums.md#Authentication) enum
-
-- `removeDC` => <kbd>void</kbd> : Deleting clients associated with an IP
-
-  - <kbd>string $ip</kbd> , the IP address
 
 - `layer` => <kbd>int</kbd> : Returns the MTProto layer number
 

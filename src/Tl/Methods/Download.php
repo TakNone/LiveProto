@@ -34,7 +34,7 @@ use function Amp\File\move;
 
 trait Download {
 	protected function download_file(
-		string | Closure $path,
+		string $path,
 		int $size,
 		int $dc_id,
 		#[Type('InputFileLocation')] $location,
@@ -42,7 +42,7 @@ trait Download {
 		? string $key = null,
 		? string $iv = null
 	) : string {
-		$partSizeKB = ($size < 0x80000 ? 128 : ($size < 0x100000 ? 256 : 512));
+		$partSizeKB = ($size < 0x80000 ? 256 : ($size < 0x100000 ? 512 : 1024));
 		$limit = intval($size > 0 ? $partSizeKB : 1024) * 1024;
 		$offset = 0;
 		$client = $this->switchDC(dc_id : $dc_id,media : true,renew : true);
@@ -58,6 +58,14 @@ trait Download {
 		}
 		$stream = openFile($path,'wb');
 		$percent = 0;
+		$connections = $this->getMediaConnections(dc_id : $dc_id,pfs : true,count : match(true){
+			boolval($size >= 10 * 1024 * 1024 and $size < 30 * 1024 * 1024) => 1,
+			boolval($size >= 30 * 1024 * 1024 and $size < 50 * 1024 * 1024) => 2,
+			boolval($size >= 50 * 1024 * 1024 and $size < 200 * 1024 * 1024) => 3,
+			default => null
+		});
+		Logging::log('Download','A total of '.count($connections).' connections were received');
+		$clients = new InfiniteIterator(new ArrayIterator($connections));
 		Logging::log('Download','Start downloading the '.basename($path).' file ...');
 		if($getFile instanceof \Tak\Liveproto\Tl\Types\Upload\FileCdnRedirect):
 			$client = $this->switchDC(dc_id : $getFile->dc_id,cdn : true,media : true,renew : true);
@@ -99,10 +107,12 @@ trait Download {
 			while($size > $offset or $size <= 0):
 				$requests = array();
 				for($i = 0;$i < $this->settings->getParallelDownloads();$i++):
-					$requests []= ['location'=>$location,'offset'=>$offset,'limit'=>$limit,'timeout'=>10];
+					$requests []= ['location'=>$location,'offset'=>$offset,'limit'=>$limit,'precise'=>true,'timeout'=>10];
 					$offset += $limit;
+					if($size <= $offset and $size > 0) break;
 				endfor;
-				$files = $client->upload->getFileMultiple(...$requests,responses : true);
+				$clients->next();
+				$files = $clients->current()->upload->getFileMultiple(...$requests,cooldown : 0.05,responses : true);
 				foreach($files as $file):
 					if(is_null($key) === false and is_null($iv) === false):
 						$file->bytes = Aes::decrypt($file->bytes,$key,$iv);

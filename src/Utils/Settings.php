@@ -55,11 +55,11 @@ final class Settings {
 				$value = min(max($value,1),$this->maxConnections);
 				break;
 			case 'paralleldownloads':
-				is_int($value) || $value = 50;
+				is_int($value) || $value = 10;
 				$value = min(max($value,1),100);
 				break;
 			case 'paralleluploads':
-				is_int($value) || $value = 3;
+				is_int($value) || $value = 10;
 				$value = min(max($value,1),100);
 				break;
 			case 'autocachepeers':

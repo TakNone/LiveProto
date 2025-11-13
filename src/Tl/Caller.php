@@ -143,6 +143,12 @@ final class Properties {
 			else:
 				$queued = false;
 			endif;
+			if(isset($arguments['cooldown'])):
+				$cooldown = floatval($arguments['cooldown']);
+				unset($arguments['cooldown']);
+			else:
+				$cooldown = -1;
+			endif;
 			$processes = array();
 			$lastMessageId = null;
 			foreach($arguments as $i => $argument):
@@ -157,6 +163,9 @@ final class Properties {
 					$argument += ['response'=>$responses];
 				endif;
 				$processes []= async(fn(string $method) : mixed => call_user_func($method,$name,$argument),__METHOD__);
+				if($cooldown > 0):
+					delay($cooldown);
+				endif;
 			endforeach;
 			$results = await($processes);
 			ksort($results);
@@ -257,8 +266,10 @@ final class Properties {
 					$floodmax = max($this->settings->floodSleepThreshold,$floodwaitlimit);
 					if($error->getCode() == 420 and $floodmax >= $error->getValue()):
 						Logging::log('Caller','Waiting for '.$error->getValue().' seconds to resend the request due to a flood error',E_NOTICE);
-						delay($error->getValue());
-						$arguments['timeout'] = $timeout;
+						delay(max(0,$error->getValue() - 1));
+						$result = call_user_func(__METHOD__,$name,$arguments + $filtered);
+					elseif($error->getCode() == 500):
+						Logging::log('Caller','Encountered an INTERNAL error , Resending the request',E_NOTICE);
 						$result = call_user_func(__METHOD__,$name,$arguments + $filtered);
 					else:
 						throw $error;

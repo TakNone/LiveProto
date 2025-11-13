@@ -75,7 +75,7 @@ final class Client extends Caller implements Stringable {
 			$this->load->api_hash = $settings->getApiHash();
 		endif;
 		$this->mutex = new LocalMutex;
-		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$this->load->dc,'ip_address'=>$this->load->ip,'port'=>$this->load->port,'client'=>$this,'expires_at'=>$this->load->expires_at]));
+		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$this->load->dc,'ip_address'=>$this->load->ip,'port'=>$this->load->port,'client'=>$this,'media_only'=>$this->load->media_only,'expires_at'=>$this->load->expires_at]));
 		$proxy = $this->settings->getProxy();
 		$this->mtproxy = (is_null($proxy) === false and strtoupper($proxy['type']) === 'MTPROXY') ? $this->inputClientProxy(address : parse_url($proxy['address'],PHP_URL_HOST),port : parse_url($proxy['address'],PHP_URL_PORT)) : null;
 	}
@@ -109,7 +109,7 @@ final class Client extends Caller implements Stringable {
 	}
 	public function setDC(string $ip,int $port,int $id) : void {
 		list($this->load->ip,$this->load->port,$this->load->dc) = func_get_args();
-		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$id,'ip_address'=>$ip,'port'=>$port,'client'=>$this,'expires_at'=>$this->load->expires_at]));
+		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$id,'ip_address'=>$ip,'port'=>$port,'client'=>$this,'media_only'=>$this->load->media_only,'expires_at'=>$this->load->expires_at]));
 	}
 	public function changeDC(int $dc_id) : void {
 		Logging::log('Client','Try change dc ...');
@@ -121,7 +121,6 @@ final class Client extends Caller implements Stringable {
 			foreach($this->config->dc_options as $dc):
 				if($dc->ipv6 === $this->settings->ipv6 and $dc->id === $dc_id and $dc->media_only === false and $dc->tcpo_only === false and $dc->cdn === false):
 					# $this->sender->destroyAuthKey(); #
-					$this->removeDC($this->load->ip);
 					$this->setDC($dc->ip_address,$dc->port,$dc->id);
 					Logging::log('Client','New IP : '.$dc->ip_address);
 					$this->connect(reconnect : true,reset : true);
@@ -151,9 +150,9 @@ final class Client extends Caller implements Stringable {
 		try {
 			foreach($this->config->dc_options as $dc):
 				if($dc->ipv6 === $this->settings->ipv6 and (is_null($dc_id) or $dc->id === $dc_id) and ($media === true or $dc->media_only === $media) and ($tcpo === true or $dc->tcpo_only === $tcpo) and $dc->cdn === $cdn):
-					if($next === false or ($next === true and in_array($dc->ip_address,array_column($this->dcOptions,'ip_address')) === false)):
+					if($next === false or ($next === true and empty($this->getAuthorizations(ip_address : $dc->ip_address)))):
 						Logging::log('Client','Switch IP : '.$dc->ip_address);
-						$is_authorized = boolval($expires_in > 0 or $dc->cdn === true) ?: $this->checkAuthorization($dc->id);
+						$is_authorized = boolval($expires_in > 0 || empty($this->getAuthorizations(id : $dc->id)) === false);
 						if($is_authorized === false):
 							$authorization = $this->auth->exportAuthorization(dc_id : $dc->id);
 						endif;
@@ -161,12 +160,13 @@ final class Client extends Caller implements Stringable {
 							Rsa::addCdn($this->help->getCdnConfig());
 						endif;
 						$expires_at = intval($expires_in > 0 ? time() + $expires_in : 0);
-						$availableClients = $this->getAuthorizations(ip_address : $dc->ip_address,expires_at : $expires_at);
-						if(empty($availableClients)):
-							$this->dcOptions []= $dc;
-							$dc->expires_at = $expires_at;
+						$availableClients = $this->getAuthorizations(ip_address : $dc->ip_address);
+						if($expires_at > 0 || empty($availableClients)):
+							$dcOption = clone $dc;
+							$this->dcOptions []= $dcOption;
+							$dcOption->expires_at = $expires_at;
 							$client = clone $this;
-							$dc->client = $client;
+							$dcOption->client = $client;
 						else:
 							Logging::log('Client','I used old built clients ...');
 							$dcOption = current($availableClients);
@@ -197,7 +197,7 @@ final class Client extends Caller implements Stringable {
 		throw new \Exception('There is a problem in creating the client for DC id '.$dc_id.' !');
 	}
 	public function getTemp(int $dc_id,int $expires_in) : self {
-		$this->dcOptions = array_filter($this->dcOptions,fn(object $dcOption) : bool => $dcOption->expires_at === 0 || $dcOption->expires_at > time());
+		$this->cleanAuthorizations();
 		$availableClients = array_filter($this->dcOptions,fn(object $dcOption) : bool => $dcOption->expires_at > 0 and $dcOption->id === $dc_id);
 		if($expires_in > 0 || empty($availableClients)):
 			Logging::log('Client','Try get temp ...');
@@ -207,15 +207,15 @@ final class Client extends Caller implements Stringable {
 				$client->init();
 				return $client;
 			else:
-				return $this->switchDC(dc_id : $dc_id)->getTemp($dc_id,$expires_in);
+				return $this->switchDC(dc_id : $dc_id)->getTemp(dc_id : $dc_id,expires_in : $expires_in);
 			endif;
 		else:
 			Logging::log('Client','I used the same old temp');
 			return current($availableClients)->client;
 		endif;
 	}
-	public function checkAuthorization(int $dc_id) : bool {
-		return in_array($dc_id,array_column($this->dcOptions,'id'));
+	public function cleanAuthorizations() : void {
+		$this->dcOptions = array_filter($this->dcOptions,fn(object $dcOption) : bool => $dcOption->expires_at === 0 || $dcOption->expires_at > time());
 	}
 	public function getAuthorizations(mixed ...$filters) : array {
 		return array_filter($this->dcOptions,fn(object $dcOption) : bool => array_intersect_assoc($dcOption->toArray(),$filters) == $filters);
@@ -225,9 +225,6 @@ final class Client extends Caller implements Stringable {
 	}
 	public function getStep() : Authentication {
 		return $this->load->step;
-	}
-	public function removeDC(string $ip) : void {
-		$this->dcOptions = array_filter($this->dcOptions,fn(object $dcOption) : bool => $dcOption->ip_address !== $ip);
 	}
 	public function layer(bool $secret = false) : int {
 		return DocBuilder::layer($secret);
@@ -274,9 +271,9 @@ final class Client extends Caller implements Stringable {
 					$this->sign_in(code : $input);
 				} catch(\Throwable $error){
 					if($error->getMessage() === 'SESSION_PASSWORD_NEEDED'):
-						Logging::echo('Your account has a password !');
+						echo('Your account has a password !');
 					elseif($error->getMessage() === 'PHONE_CODE_INVALID'):
-						Logging::echo('The phone code is invalid !');
+						echo('The phone code is invalid !');
 					endif;
 				}
 			endif;
@@ -285,11 +282,10 @@ final class Client extends Caller implements Stringable {
 				$this->sign_in(password : $input);
 			endif;
 			if($this->load->step === Authentication::LOGIN):
-				Logging::echo('Your bot is now running...');
+				echo('Your bot is now running...');
 			else:
 				$this->stop();
-				Logging::echo('Cli login does not support the stage your account is logged into !');
-				exit();
+				exit('Cli login does not support the stage your account is logged into !');
 			endif;
 		else:
 			include(__DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'login.php');
@@ -303,7 +299,7 @@ final class Client extends Caller implements Stringable {
 			$this->connect();
 		endif;
 		$this->registerFilteredFunctions();
-		if($this->settings->takeout):
+		if(is_array($this->settings->takeout)):
 			$this->takeoutid = $this->account->initTakeoutSession(...$this->settings->takeout)->id;
 		endif;
 		$bot = $this->is_bot();
@@ -381,12 +377,12 @@ final class Client extends Caller implements Stringable {
 	private function __clone() : void {
 		$this->session = clone $this->session;
 		$this->load = $this->session->load();
-		$dc = end($this->dcOptions);
-		$reAuthentication = boolval($this->load->dc !== $dc->id || boolval($dc->expires_at > time()));
-		$this->load->media_only = $dc->media_only ? true : null;
-		$this->load->expires_at = $dc->expires_at;
-		$this->setDC($dc->ip_address,$dc->port,$dc->id);
-		$this->connect(reset : $reAuthentication,origin : false);
+		$dcOption = end($this->dcOptions);
+		$reset = boolval($this->load->dc !== $dcOption->id || $dcOption->expires_at > 0);
+		$this->load->media_only = $dcOption->media_only ? true : null;
+		$this->load->expires_at = $dcOption->expires_at;
+		$this->setDC($dcOption->ip_address,$dcOption->port,$dcOption->id);
+		$this->connect(reset : $reset,origin : false);
 	}
 	public function __destruct(){
 		$this->disconnect();

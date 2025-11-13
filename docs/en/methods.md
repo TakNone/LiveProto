@@ -1360,6 +1360,28 @@ $inputPeer = $client->get_input_peer(777000); // inputPeerUser //
 
 ---
 
+## get_input_peer_from_message()
+
+Defines a min peer that was seen in a certain message of a certain chat
+
+Usable by :
+- [ ] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- message(<small>object</small>) <kbd style="color : red">required</kbd> :
+  - The message object an instance of [Message](https://core.telegram.org/constructor/message)
+
+##### <pre>Returns</pre>
+An instance of [InputPeer](https://tl.liveproto.dev/#/type/InputPeer)
+
+##### <pre>Example</pre>
+```php
+$inputPeer = $client->get_input_peer_from_message(message : $message);
+```
+
+---
+
 ## get_peer()
 
 Returns the full resolved peer information (user, chat, or channel) for the given peer input
@@ -1936,18 +1958,34 @@ Usable by :
 - channel(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd style="color : red">required</kbd> :
   - Channel identifier ( username , ID , or channel entity )
 
-- peer(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - The chat where the channel was seen
-
-- msg_id(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Optional message ID defines a min channel that was seen in a certain message of a certain chat
-
 ##### <pre>Returns</pre>
 An instance of [InputChannel](https://tl.liveproto.dev/#/type/InputChannel)
 
 ##### <pre>Example</pre>
 ```php
 $inputChannel = $client->get_input_channel('@Telegram');
+```
+
+---
+
+## get_input_channel_from_message()
+
+Defines a min channel that was seen in a certain message of a certain chat
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- message(<small>object</small>) <kbd style="color : red">required</kbd> :
+  - The message object an instance of [Message](https://core.telegram.org/constructor/message)
+
+##### <pre>Returns</pre>
+An instance of [InputChannel](https://tl.liveproto.dev/#/type/InputChannel)
+
+##### <pre>Example</pre>
+```php
+$inputChannel = $client->get_input_channel_from_message(message : $message);
 ```
 
 ---
@@ -1964,12 +2002,6 @@ Usable by :
 - user(<small>string</small>,<small>int</small>,<small>object</small>,<small>null</small>) <kbd style="color : red">required</kbd> :
   - User identifier (username, ID, or full user object)
 
-- peer(<small>string</small>,<small>int</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - The chat where the user was seen
-
-- msg_id(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Optional message ID defines a min user that was seen in a certain message of a certain chat
-
 ##### <pre>Returns</pre>
 An instance of [InputUser](https://tl.liveproto.dev/#/type/InputUser)
 
@@ -1980,6 +2012,28 @@ $inputPeer = $client->get_input_peer('me');
 $inputUser = $client->get_input_user('@LiveProtoBot');
 
 $client->messages->startBot(bot : $inputUser,peer : $inputPeer,start_param : 'love',random_id : random_int(PHP_INT_MIN,PHP_INT_MAX));
+```
+
+---
+
+## get_input_user_from_message()
+
+Defines a min user that was seen in a certain message of a certain chat
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- message(<small>object</small>) <kbd style="color : red">required</kbd> :
+  - The message object an instance of [Message](https://core.telegram.org/constructor/message)
+
+##### <pre>Returns</pre>
+An instance of [InputUser](https://tl.liveproto.dev/#/type/InputUser)
+
+##### <pre>Example</pre>
+```php
+$inputUser = $client->get_input_user_from_message(message : $message);
 ```
 
 ---

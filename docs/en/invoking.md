@@ -73,7 +73,7 @@ foreach($peers as $peer){
 	$requests []= ['peer'=>$client->get_input_peer($peer),'message'=>$message,'random_id'=>random_int(PHP_INT_MIN,PHP_INT_MAX),'entities'=>$entities];
 }
 
-var_dump($client->messages->sendMessageMultiple(...$requests,responses : true));
+var_dump($client->messages->sendMessageMultiple(...$requests,responses : true,cooldown : 0.05));
 
 $namespace = ($client->messages);
 

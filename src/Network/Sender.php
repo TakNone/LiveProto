@@ -217,9 +217,13 @@ final class Sender {
 					if($message_id % 2 !== 1):
 						Logging::log('Receive Packet','Server sent an even message id !',E_ERROR);
 					endif;
-					$this->processMessage($reader,$message_id,$sequence);
-					$this->receivedLoop();
-					$this->gcCleanup();
+					try {
+						$this->processMessage($reader,$message_id,$sequence);
+						$this->receivedLoop();
+						$this->gcCleanup();
+					} catch(Throwable $error){
+						Logging::log('Process Message',$error->getMessage(),E_WARNING);
+					}
 				};
 				EventLoop::queue($closure,$body);
 			} catch(Security $error){

@@ -6,6 +6,8 @@ namespace Tak\Liveproto\Tl\Methods;
 
 use Tak\Liveproto\Enums\PeerType;
 
+use Tak\Liveproto\Attributes\Type;
+
 use Throwable;
 
 trait Peers {
@@ -75,20 +77,49 @@ trait Peers {
 			else:
 				try {
 					$entity = $this->inputPeerUser(user_id : $peer,access_hash : $hash);
-					$user = $this->users->getFullUser($entity)->users[false];
-					$this->load->peers->setPeers(type : 'users',peers : [array('id'=>$user->id,'access_hash'=>intval($user->access_hash))]);
+					$this->users->getFullUser($entity);
+					/*
+					 * Well, these results are automatically saved, so there's no need to save again
+					 * $user = $this->users->getFullUser($entity)->users[false];
+					 * $this->load->peers->setPeers(type : 'users',peers : [array('id'=>$user->id,'access_hash'=>intval($user->access_hash))]);
+					 */
 					return $entity;
 				} catch(Throwable){
 					try {
 						$entity = $this->inputPeerChannel(channel_id : $peer,access_hash : $hash);
-						$channel = $this->channels->getFullChannel($entity)->chats[false];
-						$this->load->peers->setPeers(type : 'chats',peers : [array('id'=>$channel->id,'access_hash'=>intval($channel->access_hash))]);
+						$this->channels->getFullChannel($entity);
+						/*
+						 * Well, these results are automatically saved, so there's no need to save again
+						 * $channel = $this->channels->getFullChannel($entity)->chats[false];
+						 * $this->load->peers->setPeers(type : 'chats',peers : [array('id'=>$channel->id,'access_hash'=>intval($channel->access_hash))]);
+						 */
 						return $entity;
 					} catch(Throwable){
 						return $this->inputPeerChat(chat_id : $peer);
 					}
 				}
 			endif;
+		endif;
+	}
+	protected function get_input_peer_from_message(#[Type('Message')] object $message) : object {
+		if(isset($message->from_id->user_id)):
+			$inputPeer = $this->get_input_peer(peer : $message->peer_id);
+			$entity = $this->inputPeerUserFromMessage(peer : $inputPeer,msg_id : $message->id,user_id : $message->from_id->user_id);
+			if($this->load->peers->getPeer(type : 'users',by : 'id',what : $message->from_id->user_id) == false):
+				$this->users->getFullUser($entity);
+			endif;
+			return $entity;
+		elseif(isset($message->from_id->channel_id)):
+			$inputPeer = $this->get_input_peer(peer : $message->peer_id);
+			$entity = $this->inputPeerChannelFromMessage(peer : $inputPeer,msg_id : $message->id,channel_id : $message->from_id->channel_id);
+			if($this->load->peers->getPeer(type : 'chats',by : 'id',what : $message->from_id->channel_id) == false):
+				$this->channels->getFullChannel($entity);
+			endif;
+			return $entity;
+		elseif(isset($message->from_id->chat_id)):
+			return $this->inputPeerChat(chat_id : $message->from_id->chat_id);
+		else:
+			throw new \InvalidArgumentException('Field `from_id` is missing or invalid in the message');
 		endif;
 	}
 	public function get_peer(string | int | object $peer) : object {

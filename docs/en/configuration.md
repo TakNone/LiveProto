@@ -170,7 +170,7 @@ Minimum number of connections required for media connections
 ## Parallel Downloads
 
 - Type : `Integer` <kbd>optional</kbd>
-- Default : `50`
+- Default : `10`
 
 The number of requests sent simultaneously to download the file
 
@@ -179,7 +179,7 @@ The number of requests sent simultaneously to download the file
 ## Parallel Uploads
 
 - Type : `Integer` <kbd>optional</kbd>
-- Default : `3`
+- Default : `10`
 
 The number of requests sent simultaneously to upload the file
 

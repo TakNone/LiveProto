@@ -390,25 +390,38 @@ final class Updates {
 				 *
 				 * So if you have trouble getting the peers, just enable `autoCachePeers` in the settings
 				 */
-				# updateShortMessage#313bc7f8 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int user_id:long message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?long reply_to:flags.3?MessageReplyHeader entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
-				if(isset($update->user_id)):
-					$update->peer_id = new \Tak\Liveproto\Tl\Types\Other\PeerUser(['user_id'=>$update->user_id]);
-				# updateShortChatMessage#4d6deea5 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int from_id:long chat_id:long message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?long reply_to:flags.3?MessageReplyHeader entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
-				elseif(isset($update->chat_id,$update->from_id)):
-					$update->peer_id = new \Tak\Liveproto\Tl\Types\Other\PeerChat(['chat_id'=>$update->chat_id]);
-					$update->from_id = new \Tak\Liveproto\Tl\Types\Other\PeerUser(['user_id'=>$update->from_id]);
-				endif;
-				$message = $update->clone(new \Tak\Liveproto\Tl\Types\Other\Message,true);
-				$newMessage = new \Tak\Liveproto\Tl\Types\Other\UpdateNewMessage(['message'=>$message,'pts'=>$update->pts,'pts_count'=>$update->pts_count]);
-				$this->applyUpdate($newMessage);
-				break;
+				try {
+					# updateShortMessage#313bc7f8 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int user_id:long message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?long reply_to:flags.3?MessageReplyHeader entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
+					if(isset($update->user_id)):
+						$update->peer_id = new \Tak\Liveproto\Tl\Types\Other\PeerUser(['user_id'=>$update->user_id]);
+						$update->from_id = new \Tak\Liveproto\Tl\Types\Other\PeerUser(['user_id'=>$update->out ? $this->client->get_peer_id('me') : $update->user_id]);
+						if($this->load->peers->getPeer(type : 'users',by : 'id',what : $update->user_id) == false):
+							$entity = $this->client->inputPeerUserFromMessage(peer : $this->client->inputPeerSelf(),msg_id : $update->id,user_id : $update->user_id);
+							$this->client->users->getFullUser($entity);
+						endif;
+					# updateShortChatMessage#4d6deea5 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int from_id:long chat_id:long message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?long reply_to:flags.3?MessageReplyHeader entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
+					elseif(isset($update->chat_id,$update->from_id)):
+						$update->peer_id = new \Tak\Liveproto\Tl\Types\Other\PeerChat(['chat_id'=>$update->chat_id]);
+						$update->from_id = new \Tak\Liveproto\Tl\Types\Other\PeerUser(['user_id'=>$update->from_id]);
+						if($this->load->peers->getPeer(type : 'users',by : 'id',what : $update->from_id) == false):
+							$entity = $this->client->inputPeerUserFromMessage(peer : $this->client->inputPeerChat(chat_id : $update->chat_id),msg_id : $update->id,user_id : $update->from_id);
+							$this->client->users->getFullUser($entity);
+						endif;
+					endif;
+					$message = $update->clone(new \Tak\Liveproto\Tl\Types\Other\Message,true);
+					$newMessage = new \Tak\Liveproto\Tl\Types\Other\UpdateNewMessage(['message'=>$message,'pts'=>$update->pts,'pts_count'=>$update->pts_count]);
+					$this->applyUpdate($newMessage);
+					break;
+				} catch(\Throwable $error){
+					Logging::log('Short Message','When completing the update : '.$error->getMessage(),E_WARNING);
+				}
 			# updateShortSentMessage#9015e101 flags:# out:flags.1?true id:int pts:int pts_count:int date:int media:flags.9?MessageMedia entities:flags.7?Vector<MessageEntity> ttl_period:flags.25?int = Updates; #
 			case 'updateShortSentMessage':
 				Logging::log('Process Updates','Received '.$update->getClass(),E_NOTICE);
 				$local_pts = intval($update->pts - $update->pts_count);
 				$difference = $this->client->updates->getDifference(pts : $local_pts,date : $update->date,pts_limit : $update->pts_count,qts : 0);
 				if(isset($difference->new_messages) and count($difference->new_messages) === $update->pts_count):
-					Logging::log('Process Updates','updates.getDifference results accepted for updateShortSentMessage');
+					Logging::log('Process Updates','updates.getDifference results accepted for '.$update->getClass());
 					$fn = function(object $newMessage) use(&$local_pts) : void {
 						$this->applyUpdate(new \Tak\Liveproto\Tl\Types\Other\UpdateNewMessage(['message'=>$newMessage,'pts'=>++$local_pts,'pts_count'=>1]));
 					};
