@@ -73,6 +73,7 @@ final class Session {
 			'ip'=>($this->ipv6 ? $server['ipv6'] : $server['ip']),
 			'port'=>$server['port'],
 			'auth_key'=>new \stdClass,
+			'media_only'=>false,
 			'expires_at'=>0,
 			'salt'=>0,
 			'salt_valid_until'=>0,

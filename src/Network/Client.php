@@ -75,7 +75,7 @@ final class Client extends Caller implements Stringable {
 			$this->load->api_hash = $settings->getApiHash();
 		endif;
 		$this->mutex = new LocalMutex;
-		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$this->load->dc,'ip_address'=>$this->load->ip,'port'=>$this->load->port,'client'=>$this,'media_only'=>$this->load->media_only,'expires_at'=>$this->load->expires_at]));
+		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$this->load->dc,'ip_address'=>$this->load->ip,'port'=>$this->load->port,'client'=>$this,'media_only'=>isset($this->load->media_only),'expires_at'=>$this->load->expires_at]));
 		$proxy = $this->settings->getProxy();
 		$this->mtproxy = (is_null($proxy) === false and strtoupper($proxy['type']) === 'MTPROXY') ? $this->inputClientProxy(address : parse_url($proxy['address'],PHP_URL_HOST),port : parse_url($proxy['address'],PHP_URL_PORT)) : null;
 	}
@@ -109,7 +109,7 @@ final class Client extends Caller implements Stringable {
 	}
 	public function setDC(string $ip,int $port,int $id) : void {
 		list($this->load->ip,$this->load->port,$this->load->dc) = func_get_args();
-		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$id,'ip_address'=>$ip,'port'=>$port,'client'=>$this,'media_only'=>$this->load->media_only,'expires_at'=>$this->load->expires_at]));
+		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$id,'ip_address'=>$ip,'port'=>$port,'client'=>$this,'media_only'=>isset($this->load->media_only),'expires_at'=>$this->load->expires_at]));
 	}
 	public function changeDC(int $dc_id) : void {
 		Logging::log('Client','Try change dc ...');
@@ -271,9 +271,9 @@ final class Client extends Caller implements Stringable {
 					$this->sign_in(code : $input);
 				} catch(\Throwable $error){
 					if($error->getMessage() === 'SESSION_PASSWORD_NEEDED'):
-						echo('Your account has a password !');
+						Tools::colorize('Your account has a password !',fg : 'yellow',options : ['underline']);
 					elseif($error->getMessage() === 'PHONE_CODE_INVALID'):
-						echo('The phone code is invalid !');
+						Tools::colorize('The phone code is invalid !',fg : 'red',options : ['blink']);
 					endif;
 				}
 			endif;
@@ -282,7 +282,7 @@ final class Client extends Caller implements Stringable {
 				$this->sign_in(password : $input);
 			endif;
 			if($this->load->step === Authentication::LOGIN):
-				echo('Your bot is now running...');
+				Tools::colorize('✓ Your bot is now running...',fg : 'green',options : ['bold']);
 			else:
 				$this->stop();
 				exit('Cli login does not support the stage your account is logged into !');

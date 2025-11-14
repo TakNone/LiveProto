@@ -191,7 +191,7 @@ abstract class Tools {
 			'integer' => 'BIGINT', // abs($data) > 0x7fffffff ? 'BIGINT' : 'INT' //
 			'double' => 'REAL',
 			'string' => 'TEXT', // mb_strlen($data) > 0xffff ? 'LONGTEXT' : 'TEXT' //
-			default => 'VARCHAR ('.mb_strlen($data).')'
+			default => 'VARCHAR (1024)' // mb_strlen(strval($data)) //
 		};
 		return $type;
 	}
