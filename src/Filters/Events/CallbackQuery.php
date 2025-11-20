@@ -24,10 +24,10 @@ final class CallbackQuery extends Filter {
 	}
 	private function boundMethods(object $event) : object {
 		$event->getPeer = function(mixed $peer = null) use($event) : object {
-			return $event->get_input_peer(is_null($peer) ? ($event->class === 'updateBotCallbackQuery' ? $event->peer : ($event->class === 'updateBusinessBotCallbackQuery' ? $event->message->peer : $event->user_id)) : $peer);
+			return $event->get_input_peer(is_null($peer) ? ($event->class === 'updateBotCallbackQuery' ? $event->peer : ($event->class === 'updateBusinessBotCallbackQuery' ? $event->message->peer_id : $event->user_id)) : $peer);
 		};
 		$event->getPeerId = function() use($event) : int {
-			$peer = ($event->class === 'updateBotCallbackQuery' ? $event->peer : ($event->class === 'updateBusinessBotCallbackQuery' ? $event->message->peer : $event));
+			$peer = ($event->class === 'updateBotCallbackQuery' ? $event->peer : ($event->class === 'updateBusinessBotCallbackQuery' ? $event->message->peer_id : $event));
 			try {
 				return $event->get_peer_id($peer);
 			} catch(\Throwable){
@@ -126,7 +126,7 @@ final class CallbackQuery extends Filter {
 			return $event->getClient()->messages->setBotCallbackAnswer($event->query_id,$cache,...$args);
 		};
 		if($event->class === 'updateBotCallbackQuery' or $event->class === 'updateBusinessBotCallbackQuery'):
-			$event->type = $event->get_peer_type($event->class === 'updateBotCallbackQuery' ? $event->peer : $event->message->peer)->getChatType();
+			$event->type = $event->get_peer_type($event->class === 'updateBotCallbackQuery' ? $event->peer : $event->message->peer_id)->getChatType();
 		endif;
 		unset($event->addBoundMethods);
 		return $event;

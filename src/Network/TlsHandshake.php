@@ -44,9 +44,16 @@ final class TlsHandshake {
 			public function readexactly(int $size,? object $cancellation = null) : string {
 				$result = (string) null;
 				while($size > strlen($result)):
-					$result .= $this->socket->read($cancellation,$size - strlen($result));
 					if($this->socket->isClosed()):
 						throw new SocketException('Connection closed');
+					else:
+						$buffer = $this->socket->read($cancellation,$size - strlen($result));
+						if(is_null($buffer) === false):
+							$result .= $buffer;
+						else:
+							$this->socket->close();
+							throw new SocketException('Connection closed by remote host ( EOF ) !');
+						endif;
 					endif;
 				endwhile;
 				return $result;
@@ -55,7 +62,11 @@ final class TlsHandshake {
 				Logging::log('Tls Handshake','TLS recording started ...');
 				$header = $this->readexactly(self::HEADER_LENGTH,$cancellation);
 				$size = Helper::unpack('n',substr($header,0x3,0x2));
-				$read = strval($this->socket->read($cancellation,$size));
+				$read = $this->socket->read($cancellation,$size);
+				if(is_null($read)):
+					$this->socket->close();
+					throw new SocketException('Connection closed by remote host ( EOF ) !');
+				endif;
 				assert(strlen($read) === $size,new SocketException('The exact size of the bytes was not read'));
 				$this->buffer .= $read;
 				Logging::log('Tls Handshake','A data of length '.strlen($read).' was obtained from recording TLS');
@@ -103,8 +114,9 @@ final class TlsHandshake {
 			do {
 				if($socket->isClosed()):
 					throw new SocketException('The connection may have been closed due to sending incorrect information to the proxy');
+				else:
+					$chunk .= $socket->read() ?? throw new \RuntimeException('Connection closed by remote host ( EOF ) !');
 				endif;
-				$chunk .= $socket->read();
 			} while(empty($chunk));
 		$length = strlen($chunk);
 		if($length > 64 * 1024):

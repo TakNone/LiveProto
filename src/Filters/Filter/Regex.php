@@ -13,11 +13,7 @@ final class Regex extends Filter {
 	public function apply(object $update) : array | false {
 		$update->regex = new \stdClass;
 		$update->regex->patterns = $this->items;
-		if(isset($update->message) and $update->message instanceof \Tak\Liveproto\Tl\Types\Other\Message):
-			if($update->regex->matched = $this->match($update->message->message)):
-				return $update->regex->matched;
-			endif;
-		elseif($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateBotInlineSend):
+		if($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateBotInlineSend):
 			if($update->regex->matched = $this->match($update->query)):
 				return $update->regex->matched;
 			endif;
@@ -33,12 +29,24 @@ final class Regex extends Filter {
 			if($update->data and $update->regex->matched = $this->match($update->data)):
 				return $update->regex->matched;
 			endif;
+		elseif($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateBusinessBotCallbackQuery):
+			if($update->data and $update->regex->matched = $this->match($update->data)):
+				return $update->regex->matched;
+			endif;
 		elseif($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateDraftMessage):
 			if($update->draft->message and $update->regex->matched = $this->match($update->draft->message)):
 				return $update->regex->matched;
 			endif;
 		elseif($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateStory):
 			if($update->story->caption and $update->regex->matched = $this->match($update->story->caption)):
+				return $update->regex->matched;
+			endif;
+		elseif($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateBotPrecheckoutQuery):
+			if($update->regex->matched = $this->match($update->payload)):
+				return $update->regex->matched;
+			endif;
+		elseif(isset($update->message) and $update->message instanceof \Tak\Liveproto\Tl\Types\Other\Message):
+			if($update->regex->matched = $this->match($update->message->message)):
 				return $update->regex->matched;
 			endif;
 		endif;
