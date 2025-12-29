@@ -30,6 +30,8 @@
 
 - [`NewJoinRequest`](en/handlers.md#NewJoinRequest)
 
+- [`Precheckout`](en/handlers.md#Precheckout)
+
 </details>
 
 ---
@@ -58,6 +60,8 @@
 - [`NewStory`](en/handlers.md#NewStory)
 
 - [`NewJoinRequest`](en/handlers.md#NewJoinRequest)
+
+- [`Precheckout`](en/handlers.md#Precheckout)
 
 </details>
 
@@ -91,6 +95,8 @@
 - [`NewStory`](en/handlers.md#NewStory)
 
 - [`NewJoinRequest`](en/handlers.md#NewJoinRequest)
+
+- [`Precheckout`](en/handlers.md#Precheckout)
 
 </details>
 
@@ -469,7 +475,7 @@
 
 | Parameter | Type | Default | Description |
 | :---: | :---: | :---: | :--- |
-| `path` | `string` | <kbd style="color : red">required</kbd> | The path where the media is to be downloaded and saved |
+| `destination` | `string` | <kbd style="color : red">required</kbd> | Target output for the transfer. Its meaning depends on the selected `TransferKind` |
 | `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [download_media](en/methods.md#download_media) |
 
 <details>
@@ -527,7 +533,7 @@
 
 ### resolveSuggestion
 
-> approve / reject suggested posts
+> Used to approve / reject suggested posts
 
 | Parameter | Type | Default | Description |
 | :---: | :---: | :---: | :--- |
@@ -540,5 +546,22 @@
   - [`NewMessage`](en/handlers.md#NewMessage)
   - [`MessageEdited`](en/handlers.md#MessageEdited)
   - [`NewScheduledMessage`](en/handlers.md#NewScheduledMessage)
+
+</details>
+
+---
+
+### approve
+
+> Use this method to respond to such pre-checkout queries
+
+| Parameter | Type | Default | Description |
+| :---: | :---: | :---: | :--- |
+| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [setBotPrecheckoutResults](https://tl.liveproto.dev/#/method/messages.setBotPrecheckoutResults) |
+
+<details>
+<summary style="color : slateblue">Belongs to which handlers ?!</summary>
+
+- [`Precheckout`](en/handlers.md#Precheckout)
 
 </details>

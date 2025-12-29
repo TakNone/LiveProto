@@ -52,12 +52,24 @@ final class TcpClient {
 				$http = new HttpSocketConnector(proxyAddress : $proxy['address'],username : $proxy['username'],password : $proxy['password']);
 				$this->socket = $http->connect(uri : $uri,context : $this->context,secure : isset($match['tls']));
 			elseif(strtoupper($proxy['type']) === 'MTPROXY'):
-				$uri = sprintf('tcp://%s',$proxy['address']);
-				$this->socket = connect($uri,$this->context);
-				if(isset($proxy['secret']) and Obfuscation::emulateTls(Obfuscation::fromLink($proxy['secret']))):
-					$tls = new TlsHandshake(target : $uri,proxy : $proxy);
-					$this->socket = $tls->exchange($this->socket);
-				endif;
+				$retry = 4;
+				$useLegacy = false;
+				while(true):
+					try {
+						$uri = sprintf('tcp://%s',$proxy['address']);
+						$this->socket = connect($uri,$this->context);
+						if(isset($proxy['secret']) and Obfuscation::emulateTls(Obfuscation::fromLink($proxy['secret']))):
+							$tls = new TlsHandshake(target : $uri,proxy : $proxy);
+							$this->socket = $tls->exchange(socket : $this->socket,useLegacy : $useLegacy);
+						endif;
+						break;
+					} catch(\Throwable $error){
+						$useLegacy = boolval($useLegacy === false);
+						if($retry <= 0) throw $error;
+					} finally {
+						$retry--;
+					}
+				endwhile;
 			else:
 				throw new \OutOfRangeException('Proxy type '.$proxy['type'].' is out of supported range : socks4 , socks5 , http , mtproxy');
 			endif;

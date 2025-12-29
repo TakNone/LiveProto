@@ -54,8 +54,12 @@ final class Settings {
 				is_int($value) || $value = 5;
 				$value = min(max($value,1),$this->maxConnections);
 				break;
+			case 'mediaworkers':
+				is_int($value) || $value = 3;
+				$value = max($value,1);
+				break;
 			case 'paralleldownloads':
-				is_int($value) || $value = 10;
+				is_int($value) || $value = 8;
 				$value = min(max($value,1),100);
 				break;
 			case 'paralleluploads':

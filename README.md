@@ -69,23 +69,27 @@ use Tak\Liveproto\Utils\Settings;
 $settings = new Settings();
 $settings->setApiId(21724);
 $settings->setApiHash('3e0cb5efcd52300aec5994fdfc5bdc16');
-$settings->setHideLog(false);
+$settings->setHideLog(true);
 
 $client = new Client('testSession','sqlite',$settings);
 
-$client->connect();
+$client->start(false);
+/* OR
+ * $client->connect();
+ * 
+ * if($client->isAuthorized() === false){
+ *     $client->sign_in(bot_token : '123456:AAEK.....');
+ * }
+ */
 
 try {
-	if($client->isAuthorized() === false){
-		$client->sign_in(bot_token : '123456:AAEK.....');
-	}
 	/* 😁 If you would like to avoid errors, enter your username in the line below 😎 */
 	$peer = $client->get_input_peer('@TakNone');
 	print_r($client->messages->sendMessage($peer,'👋',random_int(PHP_INT_MIN,PHP_INT_MAX)));
 } catch(Throwable $error){
 	var_dump($error);
 } finally {
-	$client->disconnect();
+	$client->stop(); // OR $client->disconnect(); //
 }
 
 ?>

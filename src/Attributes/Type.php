@@ -16,10 +16,10 @@ use InvalidArgumentException;
 
 #[Attribute(Attribute::TARGET_ALL | Attribute::IS_REPEATABLE)]
 final class Type implements ValidatorInterface {
-	public function __construct(private array | string $types){
-		if(is_string($types)){
-			$this->types = array_map(trim(...),explode(chr(124),$types));
-		}
+	protected array $types;
+
+	public function __construct(string ...$types){
+		$this->types = array_filter(array_map(trim(...),$types));
 	}
 	public function validate(string $name,mixed $value) : mixed {
 		if($value instanceof Instance === false){

@@ -119,11 +119,11 @@ final class Messages extends Filter {
 			$peer = $event->getPeer();
 			return $event->getClient()->contacts->unblock($peer,...$args);
 		};
-		$event->download = function(string $path,mixed ...$args) use($event) : string {
+		$event->download = function(mixed $destination,mixed ...$args) use($event) : mixed {
 			if(isset($event->message->media) === false):
 				throw new \Exception('The message does not contain a media');
 			else:
-				return $event->getClient()->download_media($path,$event->message->media,...$args);
+				return $event->getClient()->download_media($destination,$event->message->media,...$args);
 			endif;
 		};
 		$event->click = function(mixed ...$args) use($event) : mixed {

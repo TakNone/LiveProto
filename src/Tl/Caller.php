@@ -222,6 +222,17 @@ final class Properties {
 					unset($arguments['takeout']);
 				endif;
 			endif;
+			/*
+			if(boolval(array_key_exists('takeout',$arguments) and $arguments['takeout'] === true) || boolval(array_key_exists('takeout',$arguments) === false and is_array($this->settings->takeout))):
+				$arguments['takeout'] = false;
+				$arguments['raw'] = true;
+				$request = call_user_func(__METHOD__,$name,$arguments);
+				return $this->parent->invokeWithTakeout($this->takeoutid,$request,...$filtered);
+			endif;
+			if(array_key_exists('takeout',$arguments)):
+				unset($arguments['takeout']);
+			endif;
+			*/
 			if(array_key_exists('receiveUpdates',$arguments)):
 				if($arguments['receiveUpdates'] === false):
 					unset($arguments['receiveUpdates']);
@@ -232,6 +243,17 @@ final class Properties {
 					unset($arguments['receiveUpdates']);
 				endif;
 			endif;
+			/*
+			if(boolval(array_key_exists('receiveUpdates',$arguments) and $arguments['receiveUpdates'] === false) || boolval(array_key_exists('receiveUpdates',$arguments) === false and $this->settings->receiveUpdates === false)):
+				$arguments['receiveUpdates'] = true;
+				$arguments['raw'] = true;
+				$request = call_user_func(__METHOD__,$name,$arguments);
+				return $this->parent->invokeWithoutUpdates($request,...$filtered);
+			endif;
+			if(array_key_exists('receiveUpdates',$arguments)):
+				unset($arguments['receiveUpdates']);
+			endif;
+			*/
 			if(array_key_exists('afterId',$arguments)):
 				if(is_numeric($arguments['afterId'])):
 					$afterId = intval($arguments['afterId']);

@@ -22,7 +22,7 @@ class_alias(Tak\Liveproto\Filters\Filter::class,Tak\Liveproto\Handler::class);
 
 class_alias(Tak\Liveproto\Errors\RpcError::class,Tak\Liveproto\Errors::class);
 
-const REQUIRED_PHP_VERSION = '8.2.0';
+const REQUIRED_PHP_VERSION = '8.3.0';
 
 const REQUIRED_EXTENSIONS = array(
 	'openssl',

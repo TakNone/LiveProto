@@ -21,7 +21,11 @@ Here we want to introduce the Enumerations that are used in <mark>LiveProto</mar
 You can take the step in which your session is now using the following method and do the next step yourself
 
 ```php
-$step = $client->getStep();
+use Tak\Liveproto\Enums\Authentication;
+
+$step = $client->getStep(); // enum(Tak\Liveproto\Enums\Authentication::NEED_CODE)
+
+// A simple example //
 
 if($step === Authentication::NEED_CODE){
 	$client->sign_in(code : '12345');
@@ -53,6 +57,8 @@ if($step === Authentication::NEED_CODE){
 This is used in the [Command Filter](en/handlers.md#update-filter-attributes) related to [update handlers](en/handlers.md), and pay attention to the example below
 
 ```php
+use Tak\Liveproto\Enums\CommandType;
+
 #[Filter(new NewMessage(new Command(hi : CommandType::AT,hello : CommandType::DOT)))]
 function newUpdate(Incoming & IsPrivate $update) : void {
 	$update->reply('Hi ! Are you okay ? 😕');
@@ -73,6 +79,8 @@ function newUpdate(Incoming & IsPrivate $update) : void {
 It is used for [`send_email_code`](en/methods.md#send_email_code) and [`verify_email`](en/methods.md#verify_email) methods
 
 ```php
+use Tak\Liveproto\Enums\EmailPurpose;
+
 $client->send_email_code(email : ' Tak@liveproto.dev',email_purpose : EmailPurpose::LOGINCHANGE);
 
 $client->verify_email(code : 123456,email_purpose : EmailPurpose::LOGINCHANGE);
@@ -93,6 +101,8 @@ $client->verify_email(code : 123456,email_purpose : EmailPurpose::LOGINCHANGE);
 It is used in [`settings`](en/quickstart.md#Settings)
 
 ```php
+use Tak\Liveproto\Enums\ProtocolType;
+
 $settings->setProtocol(ProtocolType::ABRIDGED);
 ```
 
@@ -168,4 +178,24 @@ var_dump($client->get_peer_type('@LiveProto')); // enum(Tak\Liveproto\Enums\Peer
 
 ```php
 var_dump($client->get_secret(3416815559)['rekey']);
+```
+
+---
+
+## TransferKind
+
+- Cases
+  - FILE <kbd>file</kbd>
+  - STREAM <kbd>stream</kbd>
+  - CALLBACK <kbd>callback</kbd>
+  - BROWSER <kbd>browser</kbd>
+
+```php
+use Tak\Liveproto\Enums\TransferKind;
+
+$stickerSet = $client->inputStickerSetShortName(short_name : 'LiveProto');
+$stickers = $client->messages->getStickerSet(stickerset : $stickerSet,hash : 0);
+$document = $stickers->documents[array_rand($stickers->documents)];
+
+$client->download_media(destination : 'filename.tgs',media : $document,transfer_kind : TransferKind::BROWSER);
 ```

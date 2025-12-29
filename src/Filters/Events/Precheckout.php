@@ -29,6 +29,11 @@ final class Precheckout extends Filter {
 		$event->getPeerId = function() use($event) : int {
 			return $event->user_id;
 		};
+		$event->respond = function(mixed ...$args) use($event) : object {
+			$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
+			$peer = $event->getPeer();
+			return $event->send_content($peer,...$args);
+		};
 		$event->approve = function(...$args) use($event) : object {
 			return $event->getClient()->messages->setBotPrecheckoutResults($event->query_id,...$args);
 		};

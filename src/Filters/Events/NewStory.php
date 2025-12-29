@@ -66,11 +66,11 @@ final class NewStory extends Filter {
 			$args += ['reaction'=>$reaction];
 			return $event->getClient()->stories->sendReaction($peer,$event->story->id,...$args);
 		};
-		$event->download = function(string $path,mixed ...$args) use($event) : string {
+		$event->download = function(mixed $destination,mixed ...$args) use($event) : mixed {
 			if(isset($event->story->media) === false):
 				throw new \Exception('The message does not contain a media');
 			else:
-				return $event->getClient()->download_media($path,$event->story->media,...$args);
+				return $event->getClient()->download_media($destination,$event->story->media,...$args);
 			endif;
 		};
 		$event->getLink = function(mixed ...$args) use($event) : object {

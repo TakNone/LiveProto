@@ -151,7 +151,7 @@ abstract class Tools {
 			if(empty($fg) === false and array_key_exists($fg,$cssColorMap)):
 				$styles []= 'color: '.$cssColorMap[$fg];
 			endif;
-			if(empty($bg) === false and array_key_exists($bg,$cssBgMap)):
+			if(empty($bg) === false and array_key_exists($bg,$cssColorMap)):
 				$styles []= 'background-color: '.$cssColorMap[$bg];
 			endif;
 			$styleAttr = strval(empty($styles) ? null : ' style = '.chr(34).implode(chr(59).chr(32),$styles).chr(34));

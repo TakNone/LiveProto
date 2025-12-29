@@ -109,7 +109,14 @@ final class Sender {
 		$request->messageId = $message_id;
 		$this->queue[strval($request)] = $request;
 		Logging::log('Send Packet','Request : '.strval($request->getBinary()).' , Packet length : '.strlen($message).' , Message ID : '.$message_id.' , Sequence : '.$sequence.' , Identifier Type : '.var_export($request->identifier,true));
-		$this->transport->send($message);
+		try {
+			$this->transport->send($message);
+		} catch(RuntimeException $error){
+			Logging::log('Connection Error',$error->getMessage(),E_ERROR);
+			$this->close();
+		} catch(Throwable $error){
+			Logging::log('Send Packet',$error->getMessage(),E_WARNING);
+		}
 	}
 	public function composePlainMessage(MTRequest $request,int $salt,int $session_id,int $message_id,int $sequence) : string {
 		$plainWriter = new Binary();
@@ -140,7 +147,7 @@ final class Sender {
 		return $cipherWriter->read();
 	}
 	# https://core.telegram.org/api/pfs#related-articles #
-	public function bindTempAuthKey(self $sender,int $try = 3) : bool {
+	public function bindTempAuthKey(self $sender,int $retry = 3) : bool {
 		$nonce = Helper::generateRandomLong();
 		$authKeyInner = new MTRequest('types.bindAuthKeyInner');
 		$bindInner = $authKeyInner->withParameters(nonce : $nonce,temp_auth_key_id : $sender->load->auth_key->id,perm_auth_key_id : $this->load->auth_key->id,temp_session_id : $sender->load->id,expires_at : $sender->load->auth_key->expires_at);
@@ -156,9 +163,9 @@ final class Sender {
 			} catch(RpcError $error){
 				$code = $error->getCode();
 			} finally {
-				$try--;
+				$retry--;
 			}
-		} while($try > 0 and $code === 400);
+		} while($retry > 0 and $code === 400);
 		throw new RuntimeException('Failed to create a temporary client !',$code,$error);
 	}
 	public function receive(MTRequest $request) : mixed {

@@ -69,7 +69,7 @@ trait Peers {
 				endif;
 			endif;
 			if($chat = $this->load->peers->getPeer(type : 'chats',by : 'id',what : $peer)):
-				return $this->inputPeerChannel(channel_id : $peer,access_hash : $chat['access_hash']);
+				return $chat['access_hash'] ? $this->inputPeerChannel(channel_id : $peer,access_hash : $chat['access_hash']) : $this->inputPeerChat(chat_id : $peer);
 			elseif($user = $this->load->peers->getPeer(type : 'users',by : 'id',what : $peer)):
 				return $this->inputPeerUser(user_id : $peer,access_hash : $user['access_hash']);
 			elseif($secret = $this->load->peers->getPeer(type : 'secrets',by : 'id',what : $peer)):

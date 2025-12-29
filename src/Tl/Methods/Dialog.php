@@ -17,11 +17,13 @@ use Iterator;
 use Closure;
 
 trait Dialog {
-	protected function parse_dialogs(#[Type(['messages.Dialogs','messages.SavedDialogs','messages.peerDialogs'])] object $results) : array {
+	protected function parse_dialogs(#[Type('messages.Dialogs','messages.SavedDialogs','messages.peerDialogs')] object $results) : array {
 		$dialogs = array();
+		$peers = array_merge($results->chats,$results->users);
 		foreach($results->dialogs as $dialog):
 			$message = array_filter($results->messages,fn(object $message) => $message->id === $dialog->top_message);
-			$dialogs []= (object) ['dialog'=>$dialog,'message'=>reset($message)];
+			$peer = array_filter($peers,fn(object $peer) => $peer->id === $this->get_peer_id($dialog->peer));
+			$dialogs []= (object) ['dialog'=>$dialog,'message'=>reset($message),'peer'=>reset($peer)];
 		endforeach;
 		return $dialogs;
 	}

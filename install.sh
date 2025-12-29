@@ -203,7 +203,8 @@ composer require taknone/liveproto || {
 	ERR "composer require failed. Inspect output and retry inside $MTPROTO"
 }
 
-LOG "PHP : $($PHP_BIN -v | head -n1); Composer : $(composer --version 2>/dev/null || echo 'not found')"
+LOG "PHP : $($PHP_BIN -v | head -n1)"
+
 if [ -d "$MTPROTO/vendor/taknone/liveproto" ]; then
 	LOG "LiveProto installed at : $MTPROTO/vendor/taknone/liveproto"
 else

@@ -49,5 +49,10 @@
         "phpseclib/phpseclib": "^3.0.46",
         "taknone/attributes": "*",
         "taknone/bootstrapper": "*"
+    },
+    "config": {
+        "allow-plugins": {
+            "taknone/bootstrapper": true
+        }
     }
 }

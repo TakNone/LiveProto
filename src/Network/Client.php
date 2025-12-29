@@ -99,9 +99,6 @@ final class Client extends Caller implements Stringable {
 		if($this->connected):
 			$getConfig = $this->help->getConfig(raw : true);
 			$query = $this->initConnection(api_id : $this->load->api_id,device_model : $this->settings->getDeviceModel(),system_version : $this->settings->getSystemVersion(),app_version : $this->settings->getAppVersion(),system_lang_code : $this->settings->getSystemLangCode(),lang_pack : $this->settings->getLangPack(),lang_code : $this->settings->getLangCode(),proxy : $this->mtproxy,query : $getConfig,params : $this->settings->getParams(),raw : true);
-			if($this->settings->receiveupdates === false):
-				$query = $this->invokeWithoutUpdates(query : $query,raw : true);
-			endif;
 			$this->config = $this->invokeWithLayer(layer : $this->layer(),query : $query);
 		else:
 			throw new \RuntimeException('You are not connected yet to init connection !');
@@ -179,9 +176,6 @@ final class Client extends Caller implements Stringable {
 						if($is_authorized === false):
 							$importAuthorization = $client->auth->importAuthorization(id : $authorization->id,bytes : $authorization->bytes,raw : true);
 							$query = $client->initConnection(api_id : $client->load->api_id,device_model : $client->settings->devicemodel,system_version : $client->settings->systemversion,app_version : $client->settings->appversion,system_lang_code : $client->settings->systemlangcode,lang_pack : $client->settings->langpack,lang_code : $client->settings->langcode,proxy : $this->mtproxy,query : $importAuthorization,params : $this->settings->params,raw : true);
-							if($client->receiveupdates === false):
-								$query = $client->invokeWithoutUpdates(query : $query,raw : true);
-							endif;
 							$client->invokeWithLayer(layer : $client->layer(),query : $query);
 							$client->connected = true;
 						endif;
@@ -265,6 +259,14 @@ final class Client extends Caller implements Stringable {
 					$this->send_code(phone_number : preg_replace('/[^\d]/',strval(null),$input));
 				endif;
 			endif;
+			if($this->load->step === Authentication::NEED_EMAIL):
+				$input = Tools::readLine('Please enter your email : ');
+				$this->send_email_code(email : $input);
+			endif;
+			if($this->load->step === Authentication::NEED_EMAIL_VERIFY):
+				$input = Tools::readLine('Please enter that code you received on your email : ');
+				$this->verify_email(code : $input);
+			endif;
 			if($this->load->step === Authentication::NEED_CODE):
 				$input = Tools::readLine('Please enter that code you received : ');
 				try {
@@ -285,7 +287,7 @@ final class Client extends Caller implements Stringable {
 				Tools::colorize('✓ Your bot is now running...',fg : 'green',options : ['bold']);
 			else:
 				$this->stop();
-				exit('Cli login does not support the stage your account is logged into !');
+				exit('Cli login does not support the stage your account is logged into ( '.$this->load->step->value.' ) !');
 			endif;
 		else:
 			include(__DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'login.php');

@@ -31,6 +31,7 @@ $settings->setFloodSleepThreshold(120);
 $settings->setReceiveUpdates(false);
 $settings->setMaxConnections(10);
 $settings->setMinConnections(5);
+$settings->setMediaWorkers(3);
 $settings->setParallelDownloads(50);
 $settings->setParallelUploads(3);
 $settings->setAutoCachePeers(false);
@@ -167,10 +168,19 @@ Specifies the maximum number of connections for the media
 
 Minimum number of connections required for media connections
 
+## Media Workers
+
+- Type : `Integer` <kbd>optional</kbd>
+- Default : `3`
+
+!> Higher values may increase download speed but will also increase CPU, memory usage, and the number of simultaneous network connections
+
+Returns the maximum number of parallel worker processes used for downloading / uploading media. This value controls how many concurrent download / upload requests can be executed when fetching / sending large files
+
 ## Parallel Downloads
 
 - Type : `Integer` <kbd>optional</kbd>
-- Default : `10`
+- Default : `8`
 
 The number of requests sent simultaneously to download the file
 

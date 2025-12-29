@@ -125,10 +125,10 @@ Usable by :
 
 ##### <pre>Arguments</pre>
 - code(<small>string</small>,<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - The code that Telegram sent. If you sent it through the application, it will expire immediately.
+  - The code that Telegram sent. If you sent it through the application, it will expire immediately
 
 - password(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - 2FA password, required if `SESSION_PASSWORD_NEEDED` exception is raised.
+  - 2FA password, required if `SESSION_PASSWORD_NEEDED` exception is raised
 
 - bot_token(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Used to sign in as a bot
@@ -464,6 +464,7 @@ foreach($dialogs as $item){
 	try {
 		echo json_encode($item->message,flags : JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) , PHP_EOL;
 		echo json_encode($item->dialog,flags : JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) , PHP_EOL;
+		echo json_encode($item->peer,flags : JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) , PHP_EOL;
 	} catch(Throwable){
 		var_dump($item);
 	}
@@ -553,9 +554,175 @@ foreach($client->get_channel_difference('@LiveProto') as $channelDifference){
 
 ---
 
-## download_file()
+## inputify_file_location()
 
-Downloads a file from Telegram servers using file location and optional decryption
+Used to get input of any file location from media
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- media(<small>object</small>) <kbd style="color : red">required</kbd> :
+  - The media can be photos, documents, or even games, etc
+
+- thumb_size(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Thumbnail size to download the thumbnail
+
+##### <pre>Returns</pre>
+An instance of [InputFileLocation](https://tl.liveproto.dev/#/type/InputFileLocation)
+
+##### <pre>Example</pre>
+```php
+$stickerSet = $client->inputStickerSetShortName(short_name : 'LiveProto'); // like : https://t.me/addemoji/LiveProto
+$stickers = $client->messages->getStickerSet(stickerset : $stickerSet,hash : 0);
+$document = $stickers->documents[0]; // the first emoji / sticker
+
+$inputFileLocation = $client->inputify_file_location(media : $document);
+```
+
+---
+
+## perform_download()
+
+Performs a download according to the requested transfer kind. Delegates to file, stream or browser download handlers and returns a result specific to the transfer kind
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- destination(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Target for the download. For TransferKind::FILE and TransferKind::BROWSER this is treated as a path and HTTP status code, For TransferKind::STREAM this may be ignored and a generator is returned instead
+
+- size(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Total size of the file in bytes ( or negative / zero when unknown / streaming )
+
+- dc_id(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Data center ID where the file is stored ( used to switch connections )
+
+- location(<small>InputFileLocation</small>) <kbd style="color : red">required</kbd> :
+  - An [InputFileLocation](https://tl.liveproto.dev/#/type/InputFileLocation) object pointing to the remote file on Telegram
+
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional callback invoked with progress percentage ( float ). Return false ( or callback that results in false ) to cancel in some implementations
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional decryption key used when file bytes are encrypted ( secret or CDN encrypted files )
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional initialization vector used for decryption
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Determines how the file is transferred: TransferKind::FILE ( save to local file ), TransferKind::STREAM ( yield chunks ) or TransferKind::BROWSER ( stream as HTTP download )
+
+- mime_type(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional MIME type used to set/guess file extension or set Content-Type for browser downloads
+
+##### <pre>Returns</pre>
+Returns the local path ( string ) for TransferKind::FILE, a [Generator](https://www.php.net/manual/en/class.generator) when TransferKind::STREAM, or an HTTP status integer (e.g. 200/206) for TransferKind::BROWSER
+
+##### <pre>Example</pre>
+```php
+$inputFileLocation = $client->inputify_file_location(media : $document);
+
+$client->perform_download(destination : '/tmp/out.bin',size : 0x100000000,dc_id : 2,location : $inputFileLocation);
+```
+
+---
+
+## apply_raw_buffer()
+
+Applies a raw byte buffer to the requested transfer kind : writes bytes to a file, yields bytes for a stream, or sends an HTTP download response for browser transfers
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- destination(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Destination path (string) or other receiver depending on transfer kind. If a directory is provided a filename will be generated
+
+- bytes(<small>string</small>) <kbd style="color : red">required</kbd> :
+  - Raw bytes that will be written, yielded or emitted to the client
+
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional callback that is invoked with 100. If the callback returns / awaits false the operation is treated as canceled
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional decryption key, if provided bytes will be decrypted before being applied
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional decryption IV used together with key
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - How to handle the bytes: FILE ( save ), STREAM ( yield ), or BROWSER ( send HTTP response )
+
+- mime_type(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional MIME type that may be used to determine a file extension for saved files or Content-Type for browser
+
+##### <pre>Returns</pre>
+For TransferKind::FILE returns the string path to the saved file; for TransferKind::STREAM yields bytes (Generator); for TransferKind::BROWSER returns an HTTP status int or null (if HEAD or canceled)
+
+##### <pre>Example</pre>
+```php
+$bytes = random_bytes(0xa00000);
+
+$client->apply_raw_buffer(destination : './save.bin',bytes : $bytes);
+```
+
+---
+
+## download_chunks()
+
+Downloads a file in chunks from Telegram ( supports CDN and parallel requests ). Yields byte-chunks keyed by their offset. Designed for high-performance downloads with multiple connections and CDN handling
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- size(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Total file size in bytes ( or negative / zero for unknown / streamed sizes )
+
+- dc_id(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Data center id where the media is stored
+
+- location(<small>InputFileLocation</small>) <kbd style="color : red">required</kbd> :
+  - An [InputFileLocation](https://tl.liveproto.dev/#/type/InputFileLocation) object pointing to the remote file on Telegram
+
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional callback to receive progress percentage ( float )
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional decryption key used when chunks are encrypted ( CDN or secret files )
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional decryption IV used together with key
+
+- offset(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Byte offset to start downloading from
+
+- limit(<small>int</small>) <kbd onclick = "alert('default : 1024')">optional</kbd> :
+  - Maximum chunk size ( in KB ) to request per call before alignment
+
+##### <pre>Returns</pre>
+An instance of [Generator](https://www.php.net/manual/en/class.generator) yielding byte strings keyed by their offset ( int => string )
+
+##### <pre>Example</pre>
+```php
+$inputFileLocation = $client->inputify_file_location(media : $document);
+
+foreach($client->download_chunks(size : 0x100000000,dc_id : 2,location : $inputFileLocation) as $offset => $bytes){
+	// write $bytes at $offset //
+}
+```
+
+---
+
+## download_browser()
+
+Streams a file to the HTTP client honoring Range requests. Sends proper HTTP headers and prints byte buffers directly. Returns the HTTP status code ( 200 or 206 , etc ) or null on HEAD / cancel / error
 
 Usable by :
 - [x] Users
@@ -563,28 +730,78 @@ Usable by :
 
 ##### <pre>Arguments</pre>
 - path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+  - Filename presented to the browser ( or empty to generate a name from the file location )
+
+- mime_type(<small>string</small>) <kbd style="color : red">required</kbd> :
+  - MIME type used to set Content-Type header and determine file extension
 
 - size(<small>int</small>) <kbd style="color : red">required</kbd> :
-  - Size of the file
+  - Total size of the remote file in bytes
 
 - dc_id(<small>int</small>) <kbd style="color : red">required</kbd> :
-  - Data center ID
+  - Data center id for the file
 
-- location(<small>object</small>) <kbd style="color : red">required</kbd> :
-  - File location object
+- location(<small>InputFileLocation</small>) <kbd style="color : red">required</kbd> :
+  - Remote input location for the file
 
 - progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Callback for download progress
+  - Optional progress callback for streaming progress updates
 
 - key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Encryption key if file is encrypted
+  - Optional decryption key for encrypted chunks
 
 - iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Initialization vector for decryption
+  - Optional decryption IV
 
 ##### <pre>Returns</pre>
-Returns the path of the downloaded file
+An integer HTTP status code ( 200 or 206 ) when bytes were sent, or null on HEAD requests or if the download was canceled / failed
+
+##### <pre>Example</pre>
+```php
+$status = $client->download_browser(path : 'compressed',mime_type : 'application/zip',size : 100 * 1024 * 1024,dc_id : 4,location : $location);
+
+if($status === 206){
+	/* partial content was served */
+}
+```
+
+---
+
+## download_file()
+
+Downloads a full file to disk by consuming the download_chunks generator and writing chunks to a local file. Ensures file extension is set when possible
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- path(<small>string</small>) <kbd style="color : red">required</kbd> :
+  - Destination file path ( may be a directory - a filename will be generated )
+
+- mime_type(<small>string</small>) <kbd style="color : red">required</kbd> :
+  - MIME type used to infer a file extension if none is present
+
+- size(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Total size of the remote file in bytes
+
+- dc_id(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Data center id where the file is stored
+
+- location(<small>InputFileLocation</small>) <kbd style="color : red">required</kbd> :
+  - Remote file location object
+
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional progress callback invoked with percentage values while downloading and writing chunks
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional decryption key for encrypted downloads
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional decryption IV
+
+##### <pre>Returns</pre>
+A string containing the final local path of the downloaded file ( may include newly-appended extension )
 
 ##### <pre>Example</pre>
 ```php
@@ -592,8 +809,7 @@ $peer = $client->get_input_peer('@LiveProto');
 $photo_id = $client->get_peer($peer)->photo->photo_id;
 $location = $client->inputPeerPhotoFileLocation(peer : $peer,photo_id : $photo_id,big : true);
 
-
-$client->download_file(path : __DIR__.DIRECTORY_SEPARATOR.'file.png',size : 2 * 1024 * 1024,dc_id : 3,location : $location);
+$client->download_file(path : __DIR__.DIRECTORY_SEPARATOR.'file',mime_type : 'image/jpeg',size : 2 * 1024 * 1024,dc_id : 3,location : $location);
 ```
 
 ---
@@ -607,29 +823,35 @@ Usable by :
 - [x] Bots
 
 ##### <pre>Arguments</pre>
-- path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+- to(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Alias of destination, defining where the transferred data should be written or delivered
 
 - file(<small>object</small>) <kbd style="color : red">required</kbd> :
   - Photo or message media photo object
+
+- big(<small>bool</small>) <kbd onclick = "alert('default : true')">optional</kbd> :
+  - Whether to download the big size
 
 - progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Callback for download progress
 
 - key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Encryption key (optional)
+  - Encryption key ( if required )
 
 - iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Initialization vector (optional)
+  - Initialization vector ( if required )
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Defines how the downloaded data should be delivered ( saved to a file, streamed, or sent directly to the browser )
 
 ##### <pre>Returns</pre>
-Returns the path to the downloaded photo
+The result of the transfer, varying by transfer kind ( path, generator, or HTTP status code )
 
 ##### <pre>Example</pre>
 ```php
 $full = $client->get_full_peer('@LiveProto');
 
-$client->download_photo(path : './file.jpg',file : $full->chat_photo);
+$client->download_photo(to : './file.jpg',file : $full->chat_photo);
 ```
 
 ---
@@ -643,11 +865,11 @@ Usable by :
 - [x] Bots
 
 ##### <pre>Arguments</pre>
-- path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+- to(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Alias of destination, defining where the transferred data should be written or delivered
 
 - file(<small>object</small>) <kbd style="color : red">required</kbd> :
-  - User,Chat,or Channel object containing a profile photo
+  - User, Chat, or Channel object containing a profile photo
 
 - big(<small>bool</small>) <kbd onclick = "alert('default : true')">optional</kbd> :
   - Whether to download the big size
@@ -656,19 +878,22 @@ Usable by :
   - Callback for download progress
 
 - key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Decryption key (if required)
+  - Decryption key ( if required )
 
 - iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Initialization vector for decryption
+  - Initialization vector for decryption ( if required )
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Defines how the downloaded data should be delivered ( saved to a file, streamed, or sent directly to the browser )
 
 ##### <pre>Returns</pre>
-Returns the path to the downloaded profile photo
+The result of the transfer, varying by transfer kind ( path, generator, or HTTP status code )
 
 ##### <pre>Example</pre>
 ```php
 $peer = $client->get_peer('@LiveProto');
 
-$client->download_profile_photo(path : './file.jpeg',file : $peer);
+$client->download_profile_photo(to : './file.jpeg',file : $peer);
 ```
 
 ---
@@ -682,8 +907,8 @@ Usable by :
 - [x] Bots
 
 ##### <pre>Arguments</pre>
-- path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+- to(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Alias of destination, defining where the transferred data should be written or delivered
 
 - file(<small>object</small>) <kbd style="color : red">required</kbd> :
   - Document or message media document object
@@ -691,17 +916,23 @@ Usable by :
 - thumb(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - Whether to download the document thumbnail instead of full document
 
+- big(<small>bool</small>) <kbd onclick = "alert('default : true')">optional</kbd> :
+  - Whether to download the big size
+
 - progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Callback for download progress
 
 - key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Decryption key (if required)
+  - Decryption key ( if required )
 
 - iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Initialization vector for decryption
+  - Initialization vector for decryption ( if required )
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Defines how the downloaded data should be delivered ( saved to a file, streamed, or sent directly to the browser )
 
 ##### <pre>Returns</pre>
-Returns the path of the downloaded document
+The result of the transfer, varying by transfer kind ( path, generator, or HTTP status code )
 
 ##### <pre>Example</pre>
 ```php
@@ -709,7 +940,7 @@ $stickerSet = $client->inputStickerSetShortName(short_name : 'LiveProto'); // li
 $stickers = $client->messages->getStickerSet(stickerset : $stickerSet,hash : 0);
 $document = $stickers->documents[0]; // the first emoji / sticker
 
-$client->download_document(path : './file.tgs',file : $document);
+$client->download_document(to : './file.tgs',file : $document);
 ```
 
 ---
@@ -723,14 +954,26 @@ Usable by :
 - [x] Bots
 
 ##### <pre>Arguments</pre>
-- path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+- to(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Alias of destination, defining where the transferred data should be written or delivered
 
 - file(<small>object</small>) <kbd style="color : red">required</kbd> :
   - WebDocument object containing URL and metadata
 
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Callback for download progress
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Decryption key ( if required )
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Initialization vector for decryption ( if required )
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Defines how the downloaded data should be delivered ( saved to a file, streamed, or sent directly to the browser )
+
 ##### <pre>Returns</pre>
-Returns the path to the downloaded web document
+The result of the transfer, varying by transfer kind ( path, generator, or HTTP status code )
 
 ##### <pre>Example</pre>
 ```php
@@ -739,7 +982,7 @@ $status = $client->payments->getStarsStatus(peer : $peer);
 if($status->subscriptions){
 	$subscription = $status->subscriptions[0];
 	if($subscription->photo){
-		$client->download_web_document(path : './file.unknown',file : $subscription->photo);
+		$client->download_web_document(to : './file.unknown',file : $subscription->photo);
 	}
 }
 ```
@@ -755,20 +998,32 @@ Usable by :
 - [x] Bots
 
 ##### <pre>Arguments</pre>
-- path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+- to(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Alias of destination, defining where the transferred data should be written or delivered
 
 - file(<small>object</small>) <kbd style="color : red">required</kbd> :
   - Media contact object containing vCard
 
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Callback for download progress
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Decryption key ( if required )
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Initialization vector for decryption ( if required )
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Defines how the downloaded data should be delivered ( saved to a file, streamed, or sent directly to the browser )
+
 ##### <pre>Returns</pre>
-Returns the path of the saved vCard file
+The result of the transfer, varying by transfer kind ( path, generator, or HTTP status code )
 
 ##### <pre>Example</pre>
 ```php
 $mediaContact = $client->inputMediaContact(phone_number : '+123456789',first_name : 'Live',last_name : 'Proto',vcard : strval(null));
 
-$client->download_contact(path : './file.vcard',file : $mediaContact);
+$client->download_contact(to : './file.vcard',file : $mediaContact);
 ```
 
 ---
@@ -782,8 +1037,8 @@ Usable by :
 - [ ] Bots
 
 ##### <pre>Arguments</pre>
-- path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+- to(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Alias of destination, defining where the transferred data should be written or delivered
 
 - file(<small>object</small>) <kbd style="color : red">required</kbd> :
   - Encrypted file object or decrypted message object
@@ -797,14 +1052,17 @@ Usable by :
 - iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Encryption iv for decryption
 
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Defines how the downloaded data should be delivered ( saved to a file, streamed, or sent directly to the browser )
+
 ##### <pre>Returns</pre>
-Returns the path to the downloaded and decrypted file
+The result of the transfer, varying by transfer kind ( path, generator, or HTTP status code )
 
 ##### <pre>Example</pre>
 ```php
 $encryptedMessage = $client->fetchUpdate(array('updateNewEncryptedMessage','updateEncryption'),callback : fn(object $update) : bool => $update->message->file instanceof \Tak\Liveproto\Tl\Types\Other\EncryptedFile,timeout : 100)->await();
 
-$path = $client->download_secret_file(path : './file',file : $encryptedMessage);
+$path = $client->download_secret_file(to : './file',file : $encryptedMessage);
 
 /* If you have not chosen any extension for your file, we will choose one for you and include it in the output */
 echo 'Path : ' , $path , PHP_EOL;
@@ -824,14 +1082,17 @@ Usable by :
 > I suggest you only use other download methods when necessary. The easiest and best way is to use this method
 
 ##### <pre>Arguments</pre>
-- path(<small>string</small>) <kbd style="color : red">required</kbd> :
-  - Destination file path
+- destination(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Target output for the transfer. Its meaning depends on the selected `TransferKind`
 
-- file(<small>object</small>) <kbd style="color : red">required</kbd> :
+- media(<small>object</small>) <kbd style="color : red">required</kbd> :
   - Media object ( photo , document , contact , ... )
 
 - thumb(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - Whether to download the document thumbnail instead of full document
+
+- big(<small>bool</small>) <kbd onclick = "alert('default : true')">optional</kbd> :
+  - Whether to download the big size
 
 - progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Callback for download progress
@@ -842,8 +1103,11 @@ Usable by :
 - iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Decryption iv ( if required )
 
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - Defines how the downloaded data should be delivered ( saved to a file, streamed, or sent directly to the browser )
+
 ##### <pre>Returns</pre>
-Returns the path to the downloaded media file
+The result of the transfer, varying by transfer kind ( path, generator, or HTTP status code )
 
 ##### <pre>Example</pre>
 ```php
@@ -851,7 +1115,7 @@ $stickerSet = $client->inputStickerSetDice(emoticon : '🎯');
 $stickers = $client->messages->getStickerSet(stickerset : $stickerSet,hash : 0);
 $document = $stickers->documents[array_rand($stickers->documents)];
 
-$client->download_media(path : './file.tgs',file : $document,progresscallback : function(float $percentage) : mixed {
+$client->download_media(destination : './file.tgs',media : $document,progresscallback : function(float $percentage) : mixed {
 	echo $percentage , '%' , PHP_EOL;
 	return true; // If you return false, the download will stop
 });
@@ -1153,7 +1417,7 @@ Usable by :
 - [x] Bots
 
 > [!NOTE]
-> In the result, the closure `download` , it takes parameters ( `$path` , `$progresscallback` , `$key` , `$iv` ) that are passed to the [download_file](en/functions.md#download_file) method
+> In the result, the closure `download` , it takes parameters ( `$destination` , `$progresscallback` , `$key` , `$iv` , `$transfer_kind` , `$mime_type` ) that are passed to the [perform_download](en/functions.md#perform_download) method
 
 ##### <pre>Arguments</pre>
 - file_id(<small>string</small>) <kbd style="color : red">required</kbd> :
@@ -1169,7 +1433,7 @@ $fileObject = $client->fromBotAPI('AgACAgUAAxkBAA..');
 echo 'File type : ' , $fileObject->file_type , PHP_EOL;
 echo 'File data center id : ' , $fileObject->dc_id , PHP_EOL;
 
-$realpath = $fileObject->download(path : './file');
+$realpath = $fileObject->download(destination : './file');
 
 echo 'File downloaded in : ' , $realpath;
 ```
@@ -1708,6 +1972,141 @@ $client->remove_secret(peer : $peer);
 
 ---
 
+## perform_upload()
+
+Performs an upload using the requested transfer kind. Delegates to file, stream or callback upload handlers. Return value depends on the chosen transfer kind
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- source(<small>mixed</small>) <kbd style="color : red">required</kbd> :
+  - Source of the content to upload. Can be a local path or callback
+
+- size(<small>int</small>) <kbd onclick = "alert('default : -1')">optional</kbd> :
+  - Total size of the content in bytes. Use negative / zero for unknown / streaming sources
+
+- dc_id(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Data center id to use for the upload ( when null the client chooses one )
+
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional callback invoked with upload progress ( percentage as float )
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional encryption key ( used for secret / encrypted uploads or CDN encryption )
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional initialization vector ( IV ) for encryption
+
+- transfer_kind(<small>TransferKind</small>) <kbd onclick = "alert('default : TransferKind::FILE')">optional</kbd> :
+  - How to transfer data : file ( read ), stream ( generator ), or callback ( The output that is obtained from calling it )
+
+##### <pre>Returns</pre>
+An instance of [inputFile](https://tl.liveproto.dev/#/type/InputFile) or [InputEncryptedFile](https://tl.liveproto.dev/#/type/InputEncryptedFile), a [Generator](https://www.php.net/manual/en/class.generator) when streaming depending on `transfer_kind`
+
+##### <pre>Example</pre>
+```php
+$client->perform_upload(source : '/temp/file.bin');
+```
+
+---
+
+## upload_chunks()
+
+Uploads data in chunks using multiple connections/parallelism and supports CDN/Big-file handling. Yields chunk requests and finally returns an InputFile/InputFileBig or InputEncryptedFile variant depending on encryption and size
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+> [!NOTE]
+> Array
+
+##### <pre>Arguments</pre>
+- size(<small>int</small>) <kbd onclick = "alert('default : -1')">optional</kbd> :
+  - Total size in bytes. negative / zero indicates unknown / streaming. used to choose chunk sizes and big-file logic
+
+- dc_id(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Data center ID to perform uploads against. When null the client default DC is used
+
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional callback invoked with progress percentage. Returning / awaiting false can cancel the upload
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional AES key, when provided the chunks will be encrypted ( used for secret uploads or CDN encryption )
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional AES IV used together with `key` for encryption
+
+- offset(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
+  - Byte offset where uploading should start ( useful for resume or ranged uploads )
+
+- limit(<small>int</small>) <kbd onclick = "alert('default : 512')">optional</kbd> :
+  - Maximum request chunk size ( KB ) used to compute the bytes requested / sent, internally aligned and multiplied by 1024
+
+##### <pre>Returns</pre>
+A [Generator](https://www.php.net/manual/en/class.generator) that yields chunk control pairs ( send chunk bytes to it ). On completion it returns an instance of [inputFile](https://tl.liveproto.dev/#/type/InputFile) or [InputEncryptedFile](https://tl.liveproto.dev/#/type/InputEncryptedFile)
+
+##### <pre>Example</pre>
+```php
+$generator = $client->upload_chunks();
+
+foreach($chunks as $chunk){
+	$generator->send($chunk);
+}
+$result = $generator->getReturn();
+
+var_dump($result);
+```
+
+---
+
+## upload_callback()
+
+Convenience wrapper that feeds upload_chunks with data produced by a user-provided callable. The callable receives ( offset , limit ) and must return the next chunk bytes to upload
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+##### <pre>Arguments</pre>
+- lambda(<small>callable</small>) <kbd style="color : red">required</kbd> :
+  - A callable invoked to provide each chunk. Signature : function(offset,limit) : string | null - return null to signal completion
+
+- size(<small>int</small>) <kbd onclick = "alert('default : -1')">optional</kbd> :
+  - Total size in bytes (or -1 for streaming)
+
+- dc_id(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional data-center ID for uploads
+
+- progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional progress callback receiving percentages
+
+- key(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional encryption key for the upload stream
+
+- iv(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Optional IV used for encryption
+
+##### <pre>Returns</pre>
+Returns whatever the underlying `upload_chunks` generator returns - typically an instance of [inputFile](https://tl.liveproto.dev/#/type/InputFile) or [InputEncryptedFile](https://tl.liveproto.dev/#/type/InputEncryptedFile)
+
+##### <pre>Example</pre>
+```php
+$stream = fopen('./video.mp4','r');
+
+$result = $client->upload_callback(function(int $offset,int $limit) use($stream) : string | null {
+	if(fseek($stream,$offset,SEEK_SET) === 0){
+		return fread($stream,$limit);
+	} else {
+		return null;
+	}
+});
+```
+
+---
+
 ## upload_file()
 
 Uploads a file to Telegram servers
@@ -1719,6 +2118,9 @@ Usable by :
 ##### <pre>Arguments</pre>
 - path(<small>string</small>) <kbd style="color : red">required</kbd> :
   - Path to the file on the local disk
+
+- dc_id(<small>int</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Data center id to use for the upload ( when null the client chooses one )
 
 - progresscallback(<small>callable</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Optional function to receive progress updates (percentage)

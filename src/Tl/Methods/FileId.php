@@ -18,6 +18,8 @@ use Tak\Liveproto\Enums\FileType;
 
 use Tak\Liveproto\Enums\PhotoSizeType;
 
+use Tak\Liveproto\Enums\TransferKind;
+
 use Tak\Liveproto\Attributes\Type;
 
 # https://github.com/tdlib/td/blob/master/td/telegram/files/FileLocation.hpp #
@@ -67,8 +69,8 @@ trait FileId {
 				'input_location'=>$input
 			);
 			$anonymous = new class($data) extends Instance {
-				public function download(string $path) : string {
-					return $this->download_web_document($path,$this->input_location);
+				public function download(mixed $to,mixed ...$args) : mixed {
+					return $this->download_web_document($to,$this->input_location,...$args);
 				}
 			};
 			return $anonymous->setClient($this);
@@ -77,14 +79,14 @@ trait FileId {
 			$accessHash = $reader->readLong();
 			$input = $this->inputDocumentFileLocation(id : $id,access_hash : $accessHash,file_reference : $fileReference,thumb_size : strval(null));
 		endif;
-		$volume_id = null;
-		$local_id = null;
+		$volumeId = null;
+		$localId = null;
 		$secret = null;
 		if($type <= FileType::PHOTO->toId()):
 			if($subVersion >= self::REMOVE_PHOTO_VOLUME_AND_LOCALID):
 				$source = $reader->readInt();
 			else:
-				$volume_id = $reader->readLong();
+				$volumeId = $reader->readLong();
 				if($subVersion >= self::ADD_PHOTO_SIZE_SOURCE):
 					# PhotoSizeType::LEGACY #
 					$source = $reader->readInt();
@@ -97,12 +99,12 @@ trait FileId {
 			switch($photoSizeType):
 				case PhotoSizeType::LEGACY:
 					$secret = $reader->readLong();
-					$local_id = $reader->readInt();
-					$input = $this->inputPhotoLegacyFileLocation(id : $id,access_hash : $accessHash,file_reference : $fileReference,volume_id : $volume_id,local_id : $local_id,secret : $secret);
+					$localId = $reader->readInt();
+					$input = $this->inputPhotoLegacyFileLocation(id : $id,access_hash : $accessHash,file_reference : $fileReference,volume_id : $volumeId,local_id : $localId,secret : $secret);
 					break;
 				case PhotoSizeType::THUMBNAIL:
 					$type = $reader->readInt();
-					$input->thumb_size = chr($reader->readInt());
+					$input = $this->inputPhotoFileLocation(id : $id,access_hash : $accessHash,file_reference : $fileReference,thumb_size : chr($reader->readInt()));
 					break;
 				case PhotoSizeType::DIALOGPHOTO_SMALL:
 				case PhotoSizeType::DIALOGPHOTO_BIG:
@@ -117,8 +119,8 @@ trait FileId {
 					break;
 				case PhotoSizeType::FULL_LEGACY:
 					$secret = $reader->readLong();
-					$local_id = $reader->readInt();
-					$input = $this->inputPhotoLegacyFileLocation(id : $id,access_hash : $accessHash,file_reference : $fileReference,volume_id : $volume_id,local_id : $local_id,secret : $secret);
+					$localId = $reader->readInt();
+					$input = $this->inputPhotoLegacyFileLocation(id : $id,access_hash : $accessHash,file_reference : $fileReference,volume_id : $volumeId,local_id : $localId,secret : $secret);
 					break;
 				case PhotoSizeType::DIALOGPHOTO_SMALL_LEGACY:
 				case PhotoSizeType::DIALOGPHOTO_BIG_LEGACY:
@@ -138,8 +140,8 @@ trait FileId {
 					$input = $this->inputStickerSetThumb(stickerset : $this->inputStickerSetID(id : $stickerSetId,access_hash : $stickerSetAccessHash),thumb_version : $stickerThumbVersion);
 					break;
 			endswitch;
-			if(is_null($local_id) and $subVersion < self::REMOVE_PHOTO_VOLUME_AND_LOCALID):
-				$local_id = $reader->readInt();
+			if(is_null($localId) and $subVersion < self::REMOVE_PHOTO_VOLUME_AND_LOCALID):
+				$localId = $reader->readInt();
 			endif;
 		endif;
 		$x = strlen($reader->read());
@@ -155,13 +157,13 @@ trait FileId {
 			'file_type'=>FileType::fromId($type),
 			'id'=>$id,
 			'access_hash'=>$accessHash,
-			'volume_id'=>$volume_id,
-			'local_id'=>$local_id,
+			'volume_id'=>$volumeId,
+			'local_id'=>$localId,
 			'input_location'=>$input
 		);
 		$anonymous = new class($data) extends Instance {
-			public function download(string $path,? callable $progresscallback = null,? string $key = null,? string $iv = null) : string {
-				return $this->download_file($path,PHP_INT_MAX,$this->dc_id,$this->input_location,$progresscallback,$key,$iv);
+			public function download(mixed $destination,mixed ...$args) : mixed {
+				return $this->perform_download($destination,-1,$this->dc_id,$this->input_location,...$args);
 			}
 		};
 		return $anonymous->setClient($this);
@@ -197,6 +199,7 @@ trait FileId {
 			return Tools::base64_url_encode(Rle::encode($file));
 		endif;
 		switch($input_location->getClass()):
+			case 'inputPhotoFileLocation':
 			case 'inputDocumentFileLocation':
 				$writer->writeLong($input_location->id);
 				$writer->writeLong($input_location->access_hash);
