@@ -35,7 +35,7 @@
         "php-64bit": ">=8.4",
         "taknone/asyncio": "*",
         "taknone/attributes": "*",
-        "taknone/bootstrapper": "*"
+        "taknone/bootstrapper": "*",
         "ext-openssl": "*",
         "ext-gmp": "*",
         "ext-json": "*",
