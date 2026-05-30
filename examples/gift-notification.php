@@ -27,7 +27,7 @@ use Tak\Liveproto\Filters\Interfaces\IsPrivate;
 
 use Tak\Liveproto\Enums\CommandType;
 
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
 $settings = new Settings();
 $settings->setApiId(29784714);
@@ -76,7 +76,7 @@ $handler = new Handler;
 
 $client->addHandler($handler);
 
-EventLoop::unreference(EventLoop::repeat(1.00,function() use($client,$handler) : void {
+Loop::unreference(Loop::repeat(1.00,function() use($client,$handler) : void {
 	static $hash = 0;
 	static $hour = '<start>';
 	if($client->isAuthorized() and $client->connected){

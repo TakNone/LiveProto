@@ -35,7 +35,7 @@ use Tak\Liveproto\Filters\Interfaces\Inline;
 
 use Tak\Liveproto\Enums\CommandType;
 
-use function Amp\delay;
+use function Tak\Asyncio\delay;
 
 $settings = new Settings();
 $settings->setApiId(21724);

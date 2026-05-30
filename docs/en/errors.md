@@ -4210,7 +4210,7 @@
 
 use Tak\Liveproto\Errors\RpcError;
 
-use function Amp\delay;
+use function Tak\Asyncio\delay;
 
 try {
 	sendmessage:

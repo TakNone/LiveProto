@@ -12,15 +12,13 @@ use Tak\Liveproto\Utils\Helper;
 
 use Tak\Liveproto\Utils\Tools;
 
-use Amp\Mysql\MysqlConfig;
+use function Tak\Asyncio\File\isFile;
 
-use function Amp\File\isFile;
+use function Tak\Asyncio\File\read;
 
-use function Amp\File\read;
+use function Tak\Asyncio\File\write;
 
-use function Amp\File\write;
-
-use function Amp\File\getSize;
+use function Tak\Asyncio\File\getSize;
 
 final class Session {
 	protected Content $content;
@@ -68,9 +66,9 @@ final class Session {
 		return new Content([
 			'id'=>0,
 			'api_id'=>0,
-			'api_hash'=>(string) null,
+			'api_hash'=>strval(null),
 			'dc'=>$server['dc'],
-			'ip'=>($this->ipv6 ? $server['ipv6'] : $server['ip']),
+			'ip'=>strval($this->ipv6 ? $server['ipv6'] : $server['ip']),
 			'port'=>$server['port'],
 			'auth_key'=>new \stdClass,
 			'media_only'=>false,
@@ -129,8 +127,7 @@ final class Session {
 					elseif(empty($this->database)):
 						throw new \Exception('Database parameter for mysql database is empty !');
 					else:
-						$config = MysqlConfig::fromAuthority($this->server,$this->username,$this->password,$this->database);
-						$this->mysql = new MySQL($config);
+						$this->mysql = new MySQL($this->server,$this->username,$this->password,$this->database);
 						if($this->mysql->init($this->name)):
 							$content = $this->generate();
 						else:

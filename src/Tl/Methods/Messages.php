@@ -25,6 +25,7 @@ trait Messages {
 		? string $parse_mode = null,
 		string | object | null $media = null,
 		string | int | null | object $send_as = null,
+		array | null | object $reply_markup = null,
 		FileType $file_type = FileType::DOCUMENT,
 		array $uploaded = array(),
 		mixed ...$args
@@ -39,6 +40,7 @@ trait Messages {
 		else:
 			$inputMedia = null;
 		endif;
+		$inputReplyMarkup = is_array($reply_markup) ? $this->create_reply_markup($reply_markup) : $reply_markup;
 		$parser = match(strtolower(strval($parse_mode))){
 			'html' , 'htm' => $this->html(...),
 			'markdown' , 'markdownv2' , 'md' => $this->markdown(...),
@@ -51,13 +53,67 @@ trait Messages {
 				$args['entities'] = $entities;
 			endif;
 			if(is_null($inputMedia)):
-				$sents []= $this->messages->sendMessage(...$args,peer : $inputPeer,message : strval($text),random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),send_as : ($send_as ? $inputSendAs : null));
+				$sents []= $this->messages->sendMessage(...$args,peer : $inputPeer,message : strval($text),random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),send_as : ($send_as ? $inputSendAs : null),reply_markup : $inputReplyMarkup);
 			else:
-				$sents []= $this->messages->sendMedia(...$args,peer : $inputPeer,media : $inputMedia,message : strval($text),random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),send_as : ($send_as ? $inputSendAs : null));
+				$sents []= $this->messages->sendMedia(...$args,peer : $inputPeer,media : $inputMedia,message : strval($text),random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),send_as : ($send_as ? $inputSendAs : null),reply_markup : $inputReplyMarkup);
 			endif;
 		endforeach;
 		return count($sents) > 1 ? $sents : reset($sents);
 	}
+	public function edit_content(
+		string | int | object $peer,
+		int $id,
+		? string $message = null,
+		? string $parse_mode = null,
+		string | object | null $media = null,
+		array | null | object $reply_markup = null,
+		FileType $file_type = FileType::DOCUMENT,
+		array $uploaded = array(),
+		mixed ...$args
+	) : object {
+		$inputPeer = $this->get_input_peer($peer);
+		if(is_string($media)):
+			$inputMedia = $this->get_input_media_uploaded($media,$file_type,...$uploaded);
+		elseif(is_object($media)):
+			$inputMedia = $this->get_input_media($media);
+		else:
+			$inputMedia = null;
+		endif;
+		$inputReplyMarkup = is_array($reply_markup) ? $this->create_reply_markup($reply_markup) : $reply_markup;
+		$parser = match(strtolower(strval($parse_mode))){
+			'html' , 'htm' => $this->html(...),
+			'markdown' , 'markdownv2' , 'md' => $this->markdown(...),
+			default => null
+		};
+		if(is_null($parser) === false and is_null($message) === false):
+			list($message,$entities) = $parser($message);
+			$args['entities'] = $entities;
+		endif;
+		return $this->messages->editMessage(...$args,peer : $inputPeer,id : $id,message : $message,media : $inputMedia,reply_markup : $inputReplyMarkup);
+	}
+	public function send_message_draft(
+		string | int | object $peer,
+		int $draft_id,
+		string $message,
+		? string $parse_mode = null,
+		mixed ...$args
+	) : bool | array {
+		$inputPeer = $this->get_input_peer($peer);
+		$messages = str_split(strval($message),1 << 12);
+		$parser = match(strtolower(strval($parse_mode))){
+			'html' , 'htm' => $this->html(...),
+			'markdown' , 'markdownv2' , 'md' => $this->markdown(...),
+			default => null
+		};
+		$drafteds = array();
+		foreach($messages as $text):
+			list($text,$entities) = is_null($parser) ? array(strval($text),array()) : $parser(strval($text));
+			$action = $this->sendMessageTextDraftAction(random_id : $draft_id,text : $this->textWithEntities(text : $text,entities : $entities));
+			$drafteds []= $this->messages->setTyping(...$args,peer : $inputPeer,action : $action);
+		endforeach;
+		return count($drafteds) > 1 ? $drafteds : reset($drafteds);
+	}
+	*/ TODO : Add messages.getPersonalChannelHistory method to make supporting completely */
 	protected function fetch_messages(
 		string | int | null | object $peer = null,
 		string | int | null | object $offset_peer = null,

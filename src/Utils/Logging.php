@@ -4,15 +4,13 @@ declare(strict_types = 1);
 
 namespace Tak\Liveproto\Utils;
 
-use Revolt\EventLoop;
+use function Tak\Asyncio\File\openFile;
 
-use function Amp\File\openFile;
+use function Tak\Asyncio\File\getSize;
 
-use function Amp\File\getSize;
+use function Tak\Asyncio\File\deleteFile;
 
-use function Amp\File\deleteFile;
-
-use function Amp\File\exists;
+use function Tak\Asyncio\File\exists;
 
 final class Logging {
 	private const COLORS = [

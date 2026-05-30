@@ -165,6 +165,22 @@ trait FileId {
 			public function download(mixed $destination,mixed ...$args) : mixed {
 				return $this->perform_download($destination,-1,$this->dc_id,$this->input_location,...$args);
 			}
+			/*
+			public function getMessageMedia() : object {
+				switch($this->file_type):
+					case FileType::PROFILE_PHOTO:
+						$download = $this->download_chunks(-1,$this->dc_id,$this->input_location);
+						$upload = $this->upload_chunks($size,$this->dc_id);
+						foreach($download as $buffer):
+							if($upload->valid()):
+								$upload->send($buffer);
+							endif;
+						endforeach;
+						$upload->getReturn();
+						break;
+				endswitch;
+			}
+			*/
 		};
 		return $anonymous->setClient($this);
 	}

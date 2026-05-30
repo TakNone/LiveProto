@@ -8,9 +8,7 @@ use Tak\Liveproto\Utils\Helper;
 
 use Tak\Liveproto\Utils\Logging;
 
-use Amp\Socket\Socket;
-
-use Amp\Socket\SocketException;
+use Tak\Asyncio\Socket\StreamSocket;
 
 final class TlsSocket {
 	public const HEADER_LENGTH = 0x5;
@@ -19,40 +17,40 @@ final class TlsSocket {
 	private string $buffer;
 	private bool $isFirst = true;
 
-	public function __construct(private Socket $socket){
+	public function __construct(private StreamSocket $socket){
 		if($socket->isClosed()):
-			throw new SocketException('Proxy closed the connection after TLS handshake');
+			throw new \RuntimeException('Proxy closed the connection after TLS handshake');
 		else:
 			$this->buffer = strval(null);
 		endif;
 	}
-	public function readexactly(int $size,? object $cancellation = null) : string {
-		$result = (string) null;
+	public function readexactly(int $size,int $timeout = -1) : string {
+		$result = strval(null);
 		while($size > strlen($result)):
 			if($this->socket->isClosed()):
-				throw new SocketException('Connection closed');
+				throw new \RuntimeException('Connection closed');
 			else:
-				$buffer = $this->socket->read($cancellation,$size - strlen($result));
+				$buffer = $this->socket->read($size - strlen($result),$timeout);
 				if(is_null($buffer) === false):
 					$result .= $buffer;
 				else:
 					$this->socket->close();
-					throw new SocketException('Connection closed by remote host ( EOF ) !');
+					throw new \RuntimeException('Connection closed by remote host ( EOF ) !');
 				endif;
 			endif;
 		endwhile;
 		return $result;
 	}
-	private function recordTls(? object $cancellation = null) : void {
+	private function recordTls(int $timeout = -1) : void {
 		Logging::log('Tls Handshake','TLS recording started ...');
-		$header = $this->readexactly(self::HEADER_LENGTH,$cancellation);
+		$header = $this->readexactly(self::HEADER_LENGTH,$timeout);
 		$size = Helper::unpack('n',substr($header,0x3,0x2));
-		$read = $this->socket->read($cancellation,$size);
+		$read = $this->socket->read($size,$timeout);
 		if(is_null($read)):
 			$this->socket->close();
-			throw new SocketException('Connection closed by remote host ( EOF ) !');
+			throw new \RuntimeException('Connection closed by remote host ( EOF ) !');
 		endif;
-		assert(strlen($read) === $size,new SocketException('The exact size of the bytes was not read'));
+		assert(strlen($read) === $size,new \RuntimeException('The exact size of the bytes was not read'));
 		$this->buffer .= $read;
 		Logging::log('Tls Handshake','A data of length '.strlen($read).' was obtained from recording TLS');
 	}
@@ -72,9 +70,9 @@ final class TlsSocket {
 			endfor;
 			return null;
 		elseif($name === 'read'):
-			list($cancellation,$length) = $arguments;
+			list($length,$timeout) = $arguments;
 			while(strlen($this->buffer) < $length):
-				$this->recordTls($cancellation);
+				$this->recordTls($timeout);
 			endwhile;
 			$content = substr($this->buffer,0,$length);
 			$this->buffer = substr($this->buffer,$length);

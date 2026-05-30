@@ -16,7 +16,7 @@ use Tak\Liveproto\Utils\Logging;
 
 use Tak\Liveproto\Enums\RekeyState;
 
-use function Amp\File\getSize;
+use function Tak\Asyncio\File\getSize;
 
 trait SecretChat {
 	public function send_secret_message(
@@ -70,7 +70,7 @@ trait SecretChat {
 	public function start_secret_chat(string | int | object $peer) : mixed {
 		$user = $this->get_input_user($peer);
 		$dhConfig = $this->getDhConfig();
-		$a = gmp_import(random_bytes(0x100));
+		$a = gmp_import(random_bytes(0x100) ^ $dhConfig->random);
 		$g_a = gmp_powm($dhConfig->g,$a,$dhConfig->p);
 		Security::checkG(strval($g_a),strval($dhConfig->p),true);
 		$result = $this->messages->requestEncryption(user_id : $user,random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),g_a : gmp_export($g_a));
@@ -82,7 +82,7 @@ trait SecretChat {
 	public function accept_secret_chat(object $chat) : object {
 		# encryptedChatRequested#48f1d94c flags:# folder_id:flags.0?int id:int access_hash:long date:int admin_id:long participant_id:long g_a:bytes = EncryptedChat; #
 		$dhConfig = $this->getDhConfig();
-		$b = gmp_import(random_bytes(0x100));
+		$b = gmp_import(random_bytes(0x100) ^ $dhConfig->random);
 		$g_a = gmp_import($chat->g_a);
 		Security::checkG(strval($g_a),strval($dhConfig->p),true);
 		$pow = gmp_powm($g_a,$b,$dhConfig->p);
@@ -280,7 +280,7 @@ trait SecretChat {
 		endif;
 		Logging::log('Secret Chat','rekey ...');
 		$dhConfig = $this->getDhConfig();
-		$a = gmp_import(random_bytes(0x100));
+		$a = gmp_import(random_bytes(0x100) ^ $dhConfig->random);
 		$g_a = gmp_powm($dhConfig->g,$a,$dhConfig->p);
 		Security::checkG(strval($g_a),strval($dhConfig->p),true);
 		$e = random_int(PHP_INT_MIN,PHP_INT_MAX);
@@ -304,7 +304,7 @@ trait SecretChat {
 		endif;
 		Logging::log('Secret Chat','accept rekey ...');
 		$dhConfig = $this->getDhConfig();
-		$b = gmp_import(random_bytes(0x100));
+		$b = gmp_import(random_bytes(0x100) ^ $dhConfig->random);
 		$g_a = gmp_import($g_a);
 		Security::checkG(strval($g_a),strval($dhConfig->p),true);
 		$pow = gmp_powm($g_a,$b,$dhConfig->p);

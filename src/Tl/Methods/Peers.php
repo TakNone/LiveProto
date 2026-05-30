@@ -49,10 +49,10 @@ trait Peers {
 					throw new \InvalidArgumentException('This method only accepts private links for chats as https://t.me/+abcd...');
 				endif;
 			elseif(str_starts_with($peer,'+')):
-				$phone = preg_replace('/[^0-9]/i',(string) null,$peer);
+				$phone = preg_replace('/[^0-9]/i',strval(null),$peer);
 				$resolve = $this->contacts->resolvePhone($phone);
 			else:
-				$username = preg_replace('/[^a-z_0-9]/i',(string) null,$peer);
+				$username = preg_replace('/[^a-z_0-9]/i',strval(null),$peer);
 				$resolve = $this->contacts->resolveUsername($username);
 			endif;
 			return $this->get_input_peer($resolve->peer);

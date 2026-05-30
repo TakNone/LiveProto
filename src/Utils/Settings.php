@@ -144,10 +144,10 @@ final class Settings {
 				is_string($value) || $value = 'localhost';
 				break;
 			case 'username':
-				is_string($value) || $value = (string) null;
+				is_string($value) || $value = strval(null);
 				break;
 			case 'password':
-				is_string($value) || $value = (string) null;
+				is_string($value) || $value = strval(null);
 				break;
 			case 'database':
 				is_string($value) || $value = $this->username;

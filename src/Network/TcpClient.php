@@ -12,102 +12,74 @@ use Tak\Liveproto\Network\Proxy\Socks4SocketConnector;
 
 use Tak\Liveproto\Network\Proxy\HttpSocketConnector;
 
-use Amp\Socket\ConnectContext;
-
-use Amp\TimeoutCancellation;
-
-use function Amp\Socket\connect;
+use Tak\Asyncio\Socket\StreamSocket;
 
 final class TcpClient {
-	private ConnectContext $context;
-	private object $socket;
-	public bool $connected;
+	private TlsSocket | StreamSocket $socket;
+	public bool $connected {
+		get => boolval($this->socket->isClosed() === false);
+	}
 
-	public function __construct(float $timeout = 10,? int $dns = null,bool $nodelay = false){
-		$context = new ConnectContext();
-		$context = $context->withConnectTimeout($timeout);
-		$context = $context->withDnsTypeRestriction($dns);
-		$context = ($nodelay ? $context->withTcpNoDelay() : $context->withoutTcpNoDelay());
-		$this->context = $context;
-		$this->connected = false;
+	public function __construct(int $domain){
+		$this->socket = new StreamSocket($domain);
 	}
 	public function connect(string $ip,int $port,? array $proxy = null) : void {
-		if(filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV6)):
-			$uri = sprintf('tcp://[%s]:%d',$ip,$port);
-		elseif(filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)):
-			$uri = sprintf('tcp://%s:%d',$ip,$port);
-		else:
-			throw new \InvalidArgumentException('Invalid IP !');
-		endif;
 		if(is_null($proxy)):
-			$this->socket = connect($uri,$this->context);
+			$this->socket->connect(host : $ip,port : $port,timeout : 60);
 		else:
 			if(preg_match('~^socks5(?<tls>s|(?:\+|\-)?tls)?~i',$proxy['type'],$match)):
 				$socks5 = new Socks5SocketConnector(proxyAddress : $proxy['address'],username : $proxy['username'],password : $proxy['password']);
-				$this->socket = $socks5->connect(uri : $uri,context : $this->context,secure : isset($match['tls']));
+				$this->socket = $socks5->connect(host : $ip,port : $port,secure : isset($match['tls']),timeout : 60);
 			elseif(preg_match('~^socks4(?<tls>s|(?:\+|\-)?tls)?~i',$proxy['type'],$match)):
 				$socks4 = new Socks4SocketConnector(proxyAddress : $proxy['address'],user : $proxy['user']);
-				$this->socket = $socks4->connect(uri : $uri,context : $this->context,secure : isset($match['tls']));
+				$this->socket = $socks4->connect(host : $ip,port : $port,secure : isset($match['tls']),timeout : 60);
 			elseif(preg_match('~^http(?<tls>s)?~i',$proxy['type'],$match)):
 				$http = new HttpSocketConnector(proxyAddress : $proxy['address'],username : $proxy['username'],password : $proxy['password']);
-				$this->socket = $http->connect(uri : $uri,context : $this->context,secure : isset($match['tls']));
+				$this->socket = $http->connect(host : $ip,port : $port,secure : isset($match['tls']),timeout : 60);
 			elseif(strtoupper($proxy['type']) === 'MTPROXY'):
-				$retry = 4;
-				$useLegacy = false;
-				while(true):
+				for($useLegacy = false , $retry = 3; $retry >= 0; $retry--):
 					try {
-						$uri = sprintf('tcp://%s',$proxy['address']);
-						$this->socket = connect($uri,$this->context);
+						$uri = new Uri($proxy['address']);
+						$this->socket = new StreamSocket($uri->domain);
+						$this->socket->connect(host : $uri->address,port : $uri->port,timeout : 60);
 						if(isset($proxy['secret']) and Obfuscation::emulateTls(Obfuscation::fromLink($proxy['secret']))):
-							$tls = new TlsHandshake(target : $uri,proxy : $proxy);
+							$tls = new TlsHandshake(proxy : $proxy);
 							$this->socket = $tls->exchange(socket : $this->socket,useLegacy : $useLegacy);
 						endif;
 						break;
 					} catch(\Throwable $error){
 						$useLegacy = boolval($useLegacy === false);
-						if($retry <= 0) throw $error;
-					} finally {
-						$retry--;
+						if($retry === 0) throw $error;
 					}
-				endwhile;
+				endfor;
 			else:
 				throw new \OutOfRangeException('Proxy type '.$proxy['type'].' is out of supported range : socks4 , socks5 , http , mtproxy');
 			endif;
 		endif;
-		$this->socket->setChunkSize(PHP_INT_MAX);
-		$this->connected = true;
 	}
-	public function close() : void {
+	public function close() : bool {
+		return $this->socket->close();
+	}
+	public function write(string $data,int $timeout = 60) : void {
 		if($this->connected):
-			$this->connected = false;
-			$this->socket->close();
-		endif;
-	}
-	public function write(string $data) : void {
-		if($this->socket->isClosed()):
-			throw new \RuntimeException('The connection was completely closed !');
-		elseif($this->connected):
-			$this->socket->write($data);
+			$this->socket->write($data,$timeout > 0 ? $timeout : -1);
 		else:
-			throw new \RuntimeException('First you need to connect to the server !');
+			throw new \RuntimeException('The connection was completely closed !');
 		endif;
 	}
 	public function read(int $size,int $timeout = 60) : string {
-		$result = (string) null;
-		$cancellation = $timeout > 0 ? new TimeoutCancellation($timeout) : null;
+		$result = strval(null);
 		while($size > strlen($result)):
-			if($this->socket->isClosed()):
-				throw new \RuntimeException('The connection was completely closed !');
-			elseif($this->connected):
-				$buffer = $this->socket->read($cancellation,$size - strlen($result));
-				if(is_null($buffer) === false):
+			if($this->connected):
+				$buffer = $this->socket->read($size - strlen($result),$timeout > 0 ? $timeout : -1);
+				if(is_string($buffer)):
 					$result .= $buffer;
 				else:
 					$this->close();
 					throw new \RuntimeException('Connection closed by remote host ( EOF ) !');
 				endif;
 			else:
-				throw new \RuntimeException('First you need to connect to the server !');
+				throw new \RuntimeException('The connection was completely closed !');
 			endif;
 		endwhile;
 		return $result;

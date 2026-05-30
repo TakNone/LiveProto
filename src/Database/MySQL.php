@@ -8,101 +8,89 @@ use Tak\Liveproto\Utils\Tools;
 
 use Tak\Liveproto\Utils\Logging;
 
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
-use Amp\Sync\LocalMutex;
+use Tak\Asyncio\Sync\Mutex;
 
-use Amp\Mysql\MysqlConnectionPool;
+use PDO;
 
 final class MySQL implements AbstractDB , AbstractPeers {
 	protected object $connection;
 
-	public function __construct(object $config){
-		$this->connection = new MysqlConnectionPool($config);
+	public function __construct(string $server,string $username,string $password,string $database){
+		$this->connection = new PDO('mysql:host='.$server.'; dbname='.$database.'; charset=utf8mb4',$username,$password,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
 	}
 	public function init(string $table) : bool {
-		if($this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39))->fetchRow() and $this->connection->query('SELECT * FROM '.$table)->fetchRow()):
+		$stmt = $this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39));
+		if($stmt->fetch() and $this->connection->query('SELECT * FROM '.$table.' LIMIT 1')->fetch()){
 			return false;
-		else:
-			$this->connection->query(
-				'CREATE TABLE IF NOT EXISTS '.$table.' (
-				`id` BIGINT NOT NULL DEFAULT 0
-				) default charset = utf8mb4'
-			);
+		} else {
+			$this->connection->exec('CREATE TABLE IF NOT EXISTS '.$table.' (`id` BIGINT NOT NULL DEFAULT 0) DEFAULT CHARSET=utf8mb4');
 			$this->connection->prepare('INSERT IGNORE INTO '.$table.' (`id`) VALUES (:id)')->execute(['id'=>0]);
 			return true;
-		endif;
+		}
 	}
 	public function set(string $table,string $key,mixed $value,string $type) : void {
-		static $mutex = new LocalMutex;
+		static $mutex = new Mutex;
 		$lock = $mutex->acquire();
 		try {
-			if($this->exists($table,$key) === false):
-				$this->connection->query('ALTER TABLE '.$table.' ADD COLUMN IF NOT EXISTS '.$key.chr(32).$type);
-			endif;
+			if($this->exists($table,$key) === false){
+				$this->connection->exec('ALTER TABLE '.$table.' ADD COLUMN IF NOT EXISTS '.$key.chr(32).$type);
+			}
 			$this->connection->prepare('UPDATE '.$table.' SET '.$key.' = :new')->execute(['new'=>$value]);
 		} catch(\Throwable $error){
 			Logging::log('MySQL',$error->getMessage(),E_WARNING);
 		} finally {
-			EventLoop::queue($lock->release(...));
+			Loop::queue($lock->release(...));
 		}
 	}
 	public function get(string $table) : array | null {
-		return $this->connection->query('SELECT * FROM '.$table)->fetchRow();
+		$stmt = $this->connection->query('SELECT * FROM '.$table.' LIMIT 1');
+		return $stmt->fetch() ?: null;
 	}
 	public function delete(string $table,string $key) : void {
-		$this->connection->query('ALTER TABLE '.$table.' DROP COLUMN '.$key);
+		$this->connection->exec('ALTER TABLE '.$table.' DROP COLUMN '.$key);
 	}
 	public function exists(string $table,string $key) : bool {
-		$columns = $this->connection->query('SHOW COLUMNS FROM '.$table)->fetchRow();
-		$fields = array_column($columns,'Field');
-		return in_array($key,$fields);
+		$stmt = $this->connection->query('DESCRIBE '.$table);
+		$columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+		return in_array($key,$columns);
 	}
 	public function initPeer(string $table) : bool {
-		if($this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39))->fetchRow()):
+		$stmt = $this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39));
+		if($stmt->fetch()){
 			return false;
-		else:
-			$this->connection->query(
-				'CREATE TABLE IF NOT EXISTS '.$table.' (
-				`id` BIGINT PRIMARY KEY
-				) default charset = utf8mb4'
-			);
+		} else {
+			$this->connection->exec('CREATE TABLE IF NOT EXISTS '.$table.' (`id` BIGINT PRIMARY KEY) DEFAULT CHARSET=utf8mb4');
 			return true;
-		endif;
+		}
 	}
 	public function setPeer(string $table,mixed $value) : void {
-		static $mutex = new LocalMutex;
+		static $mutex = new Mutex;
 		$lock = $mutex->acquire();
 		try {
 			$keys = array_keys($value);
-			$values = array_values($value);
-			$this->connection->query(
-				implode(chr(32),array(
-					'ALTER TABLE '.$table,
-					implode(chr(44),array_map(fn(string $key,mixed $value) : string => strval('ADD COLUMN IF NOT EXISTS `'.$key.'` '.Tools::inferType($value)),$keys,$values))
-				))
-			);
-			$this->connection->prepare(
-				implode(chr(32),array(
-					'INSERT INTO '.$table,
-					'(`'.implode(chr(96).chr(44).chr(96),$keys).'`)',
-					'VALUES',
-					'('.chr(58).implode(chr(44).chr(58),$keys).')',
-					'ON DUPLICATE KEY UPDATE',
-					implode(chr(44),array_map(fn(string $key) : string => strval($key.' = VALUES('.$key.')'),$keys))
-				))
-			)->execute($value);
+			foreach($value as $key=>$val){
+				$type = Tools::inferType($val);
+				$this->connection->exec('ALTER TABLE '.$table.' ADD COLUMN IF NOT EXISTS `'.$key.'` '.$type);
+			}
+			$cols = implode(chr(96).chr(44).chr(96),$keys);
+			$placeholders = chr(58).implode(chr(44).chr(58),$keys);
+			$update = implode(chr(44),array_map(fn($k) => $k.' = VALUES('.$k.')',$keys));
+			$this->connection->prepare('INSERT INTO '.$table.' (`'.$cols.'`) VALUES ('.$placeholders.') ON DUPLICATE KEY UPDATE '.$update)->execute($value);
 		} catch(\Throwable $error){
 			Logging::log('MySQL',$error->getMessage(),E_WARNING);
 		} finally {
-			EventLoop::queue($lock->release(...));
+			Loop::queue($lock->release(...));
 		}
 	}
 	public function getPeer(string $table,string $key,mixed $value) : array | null {
-		return $this->connection->prepare('SELECT * FROM '.$table.' WHERE '.$key.' = :value')->execute(['value'=>$value])->fetchRow();
+		$stmt = $this->connection->prepare('SELECT * FROM '.$table.' WHERE '.$key.' = :value');
+		$stmt->execute(['value'=>$value]);
+		return $stmt->fetch() ?: null;
 	}
 	public function deletePeer(string $table,string $key,mixed $value) : void {
-		$this->connection->query('DELETE FROM '.$table.' WHERE '.$key.' = :value')->execute(['value'=>$value]);
+		$this->connection->prepare('DELETE FROM '.$table.' WHERE '.$key.' = :value')->execute(['value'=>$value]);
 	}
 }
 

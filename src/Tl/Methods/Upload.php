@@ -12,13 +12,13 @@ use Tak\Liveproto\Utils\Binary;
 
 use Tak\Liveproto\Crypto\Aes;
 
-use function Amp\async;
+use function Tak\Asyncio\async;
 
-use function Amp\File\openFile;
+use function Tak\Asyncio\File\openFile;
 
-use function Amp\File\getSize;
+use function Tak\Asyncio\File\getSize;
 
-use function Amp\File\isFile;
+use function Tak\Asyncio\File\isFile;
 
 use Generator;
 
@@ -161,7 +161,7 @@ trait Upload {
 			$stream = openFile($path,'rb');
 			Logging::log('Upload','Start uploading the '.basename($path).' file ...');
 			while($generator->valid()):
-				$buffer = $stream->read(length : $generator->key());
+				$buffer = $stream->read($generator->key());
 				$generator->send($buffer);
 			endwhile;
 			$stream->close();

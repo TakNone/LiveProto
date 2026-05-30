@@ -30,11 +30,11 @@ use Tak\Liveproto\Enums\NonRpcResult;
 
 use Tak\Liveproto\Enums\MTProtoKeepAlive;
 
-use Amp\TimeoutCancellation;
+use Tak\Asyncio\TimeoutCancellation;
 
-use Amp\Sync\LocalMutex;
+use Tak\Asyncio\Sync\Mutex;
 
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
 use RuntimeException;
 
@@ -47,6 +47,7 @@ final class Sender {
 	private int $lastAckTime = 0;
 	private array $received = array();
 	private array $queue = array();
+	protected Mutex $mutex;
 	private string $receiveLoop;
 
 	public const UPDATES = array(0xe317af7e,0x313bc7f8,0x4d6deea5,0x78d4dec1,0x725b04c3,0x74ae4240,0x9015e101);
@@ -58,18 +59,19 @@ final class Sender {
 	public function __construct(protected object $transport,private readonly object $session,private object $handler,private readonly MTProtoKeepAlive $keepAlive){
 		$this->load = $session->load();
 		$session->reset();
+		$this->mutex = new Mutex;
 		$this->receiveLoop = strval(null);
-		$this->receiveLoop = EventLoop::defer($this->receivePacket(...));
-		EventLoop::setErrorHandler($this->errors(...));
+		$this->receiveLoop = Loop::defer($this->receivePacket(...));
+		Loop::setErrorHandler($this->errors(...));
 		gc_enable();
 	}
 	public function send(MTRequest $request) : void {
 		if($this->keepAlive === MTProtoKeepAlive::HTTP_LONG_POLL):
 			$httpWait = new MTRequest('types.httpWait');
 			$httpRequest = $httpWait->withParameters(max_delay : Settings::envGuess('HTTP_MAX_DELAY',1000),wait_after : Settings::envGuess('HTTP_WAIT_AFTER',200),max_wait : Settings::envGuess('HTTP_MAX_WAIT',2000));
-			EventLoop::queue($this->sendContainer(...),$request,$httpRequest);
+			Loop::queue($this->sendContainer(...),$request,$httpRequest);
 		else:
-			EventLoop::queue($this->sendPacket(...),$request);
+			Loop::queue($this->sendPacket(...),$request);
 		endif;
 	}
 	# https://core.telegram.org/mtproto/service_messages_about_messages#acknowledgment-of-receipt #
@@ -174,8 +176,7 @@ final class Sender {
 		return $future->await($cancellation);
 	}
 	public function receivedLoop() : void {
-		static $mutex = new LocalMutex;
-		$lock = $mutex->acquire();
+		$lock = $this->mutex->acquire();
 		foreach($this->received as $hash => $object):
 			if(array_key_exists($hash,$this->queue)):
 				$request = $this->queue[$hash];
@@ -232,7 +233,7 @@ final class Sender {
 						Logging::log('Process Message',$error->getMessage(),E_WARNING);
 					}
 				};
-				EventLoop::queue($closure,$body);
+				Loop::queue($closure,$body);
 			} catch(Security $error){
 				Logging::log('Security',$error->getMessage(),E_NOTICE);
 			} catch(TransportError $error){

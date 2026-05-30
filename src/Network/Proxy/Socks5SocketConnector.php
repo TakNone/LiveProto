@@ -4,27 +4,12 @@ declare(strict_types = 1);
 
 namespace Tak\Liveproto\Network\Proxy;
 
-use Amp\Cancellation;
+use Tak\Asyncio\Socket\TlsContext;
 
-use Amp\ForbidCloning;
-
-use Amp\ForbidSerialization;
-
-use Amp\Socket\Socket;
-
-use Amp\Socket\ConnectContext;
-
-use Amp\Socket\ClientTlsContext;
-
-use Amp\Socket\SocketException;
-
-use League\Uri\Http;
-
-use function Amp\Socket\socketConnector;
+use Tak\Asyncio\Socket\StreamSocket;
 
 final class Socks5SocketConnector {
-	use ForbidCloning;
-	use ForbidSerialization;
+	private StreamSocket $socket;
 
 	private const REPLIES = [
 		0 => 'Succeeded',
@@ -37,23 +22,37 @@ final class Socks5SocketConnector {
 		7 => 'Command not supported',
 		8 => 'Address type not supported'
 	];
-
-	static public function tunnel(Socket $socket,string $target,? string $username,? string $password,? Cancellation $cancellation) : void {
+	
+	public function __construct(private readonly string $proxyAddress,private readonly ? string $username = null,private readonly ? string $password = null){
+		$this->socket = new StreamSocket(new Uri($proxyAddress)->domain);
+	}
+	public function connect(string $host,int $port,TlsContext $context = new TlsContext,bool $secure = false,int $timeout = -1) : StreamSocket {
+		$uri = new Uri($this->proxyAddress);
+		if($this->socket->connect($uri->address,$uri->port,$timeout) === false):
+			throw new \Error('Connection to proxy failed');
+		endif;
+		self::tunnel($this->socket,$host,$port,$this->username,$this->password,$timeout);
+		if($secure):
+			$this->socket->setupTls($context);
+		endif;
+		return $this->socket;
+	}
+	static public function tunnel(StreamSocket $socket,string $host,int $port,? string $username,? string $password,int $timeout = -1) : void {
 		if(is_null($username) !== is_null($password)):
-			throw new SocketException('Both or neither username and password must be provided !');
+			throw new \RuntimeException('Both or neither username and password must be provided !');
 		endif;
 		$methods = chr(0);
 		if(isset($username) and isset($password)) $methods .= chr(2);
 		$socket->write(chr(5).chr(strlen($methods)).$methods);
-		$read = function(int $length) use($socket,$cancellation) : string {
+		$read = function(int $length) use($socket,$timeout) : string {
 			assert($length > 0);
 			$buffer = strval(null);
 			do {
 				$limit = $length - strlen($buffer);
 				assert($limit > 0);
-				$chunk = $socket->read($cancellation,$limit);
+				$chunk = $socket->read($limit,$timeout);
 				if($chunk === null):
-					throw new SocketException('The socket was closed before the tunnel could be established');
+					throw new \RuntimeException('The socket was closed before the tunnel could be established');
 				endif;
 				$buffer .= $chunk;
 			} while(strlen($buffer) !== $length);
@@ -61,28 +60,25 @@ final class Socks5SocketConnector {
 		};
 		$version = ord($read(1));
 		if($version !== 5):
-			throw new SocketException('Wrong SOCKS5 version : '.$version);
+			throw new \RuntimeException('Wrong SOCKS5 version : '.$version);
 		endif;
 		$method = ord($read(1));
 		if($method === 2):
 			if(is_null($username) or is_null($password)):
-				throw new SocketException('Unexpected method : '.$method);
+				throw new \RuntimeException('Unexpected method : '.$method);
 			endif;
 			$socket->write(chr(1).chr(strlen($username)).$username.chr(strlen($password)).$password);
 			$version = ord($read(1));
 			if($version !== 1):
-				throw new SocketException('Wrong authorized SOCKS version : '.$version);
+				throw new \RuntimeException('Wrong authorized SOCKS version : '.$version);
 			endif;
 			$result = ord($read(1));
 			if($result !== 0):
-				throw new SocketException('Wrong authorization status : '.$result);
+				throw new \RuntimeException('Wrong authorization status : '.$result);
 			endif;
 		elseif($method !== 0):
-			throw new SocketException('Unexpected method : '.$method);
+			throw new \RuntimeException('Unexpected method : '.$method);
 		endif;
-		$uri = Http::new($target);
-		$host = $uri->getHost() ?: throw new SocketException('Host is empty !');
-		$port = $uri->getPort();
 		$ip = inet_pton($host);
 		$payload = pack('C3',0x5,0x1,0x0);
 		if($ip !== false):
@@ -94,36 +90,22 @@ final class Socks5SocketConnector {
 		$socket->write($payload);
 		$version = ord($read(1));
 		if($version !== 5):
-			throw new SocketException('Wrong SOCKS5 version : '.$version);
+			throw new \RuntimeException('Wrong SOCKS5 version : '.$version);
 		endif;
 		$reply = ord($read(1));
 		if($reply !== 0):
 			$reply = self::REPLIES[$reply] ?? $reply;
-			throw new SocketException('Wrong SOCKS5 reply : '.$reply);
+			throw new \RuntimeException('Wrong SOCKS5 reply : '.$reply);
 		endif;
 		$rsv = ord($read(1));
 		if($rsv !== 0):
-			throw new SocketException('Wrong SOCKS5 RSV : '.$rsv);
+			throw new \RuntimeException('Wrong SOCKS5 RSV : '.$rsv);
 		endif;
 		$read(match(ord($read(1))){
 			0x1 => 4 + 2,
 			0x4 => 16 + 2,
 			0x3 => ord($read(1)) + 2
 		});
-	}
-	public function __construct(private readonly string $proxyAddress,private readonly ? string $username = null,private readonly ? string $password = null,private ? object $connector = null){
-		$this->connector ??= socketConnector();
-	}
-	public function connect(string $uri,ConnectContext $context = new ConnectContext,? Cancellation $cancellation = null,bool $secure = false) : Socket {
-		if($secure):
-			$context = $context->withTlsContext(new ClientTlsContext(Http::new($uri)->getHost()));
-		endif;
-		$socket = $this->connector->connect($this->proxyAddress,$context,$cancellation);
-		self::tunnel($socket,strval($uri),$this->username,$this->password,$cancellation);
-		if($secure):
-			$socket->setupTls($cancellation);
-		endif;
-		return $socket;
 	}
 }
 

@@ -38,18 +38,20 @@ final class NewStory extends Filter {
 			return $event->send_content($peer,...$args);
 		};
 		$event->reply = function(mixed ...$args) use($event) : object {
+			$peer = $event->getPeer();
 			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
 			$args += ['reply_to'=>$event->inputReplyToStory($peer,$event->story->id,...$reply_to)];
-			$peer = $event->getPeer();
 			return $event->send_content($peer,...$args);
 		};
 		$event->forward = function(mixed $peer,mixed ...$args) use($event) : object {
-			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
-			$args += empty($reply_to) ? [] : ['reply_to'=>(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			$to = $event->get_input_peer($peer);
 			$peer = $event->getPeer();
+			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
+			$args += empty($reply_to) ? [] : ['reply_to'=>boolval(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			$media = $event->inputMediaStory(peer : $peer,id : $event->story->id);
-			$message = strval($event->story->caption ?? null);
+			$drop_caption = boolval(array_key_exists('drop_media_captions',$args) and boolval($args['drop_media_captions']));
+			$message = boolval($drop_caption === false and isset($event->story->caption)) ? strval($event->story->caption) : strval(null);
+			$args += ['entities'=>$drop_caption ? null : $event->story->entities];
 			return $event->getClient()->messages->sendMedia($to,$media,$message,random_int(PHP_INT_MIN,PHP_INT_MAX),...$args);
 		};
 		$event->reaction = function(string | int | array | null $reaction,mixed ...$args) use($event) : object {

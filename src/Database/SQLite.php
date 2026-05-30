@@ -8,9 +8,9 @@ use Tak\Liveproto\Utils\Tools;
 
 use Tak\Liveproto\Utils\Logging;
 
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
-use Amp\Sync\LocalMutex;
+use Tak\Asyncio\Sync\Mutex;
 
 use PDO;
 
@@ -36,7 +36,7 @@ final class SQLite implements AbstractDB , AbstractPeers {
 		endif;
 	}
 	public function set(string $table,string $key,mixed $value,string $type) : void {
-		static $mutex = new LocalMutex;
+		static $mutex = new Mutex;
 		$lock = $mutex->acquire();
 		try {
 			if($this->exists($table,$key) === false):
@@ -46,7 +46,7 @@ final class SQLite implements AbstractDB , AbstractPeers {
 		} catch(\Throwable $error){
 			Logging::log('SQLite',$error->getMessage(),E_WARNING);
 		} finally {
-			EventLoop::queue($lock->release(...));
+			Loop::queue($lock->release(...));
 		}
 	}
 	public function get(string $table) : array | null {
@@ -78,7 +78,7 @@ final class SQLite implements AbstractDB , AbstractPeers {
 		endif;
 	}
 	public function setPeer(string $table,mixed $value) : void {
-		static $mutex = new LocalMutex;
+		static $mutex = new Mutex;
 		$lock = $mutex->acquire();
 		try {
 			$keys = array_keys($value);
@@ -106,7 +106,7 @@ final class SQLite implements AbstractDB , AbstractPeers {
 		} catch(\Throwable $error){
 			Logging::log('SQLite',$error->getMessage(),E_WARNING);
 		} finally {
-			EventLoop::queue($lock->release(...));
+			Loop::queue($lock->release(...));
 		}
 	}
 	public function getPeer(string $table,string $key,mixed $value) : array | null {

@@ -32,9 +32,9 @@ use Tak\Liveproto\Enums\MTProtoKeepAlive;
 
 use Tak\Liveproto\Filters\Filter;
 
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
-use Amp\Sync\LocalMutex;
+use Tak\Asyncio\Sync\Mutex;
 
 use Stringable;
 
@@ -43,7 +43,7 @@ final class Client extends Caller implements Stringable {
 	protected Content $load;
 	protected TcpTransport $transport;
 	protected Sender $sender;
-	protected LocalMutex $mutex;
+	protected Mutex $mutex;
 	public readonly Updates $handler;
 	protected ? object $locker;
 	public ? object $mtproxy;
@@ -74,7 +74,7 @@ final class Client extends Caller implements Stringable {
 		else:
 			$this->load->api_hash = $settings->getApiHash();
 		endif;
-		$this->mutex = new LocalMutex;
+		$this->mutex = new Mutex;
 		$this->dcOptions = array(new \Tak\Liveproto\Tl\Types\Other\DcOption(['id'=>$this->load->dc,'ip_address'=>$this->load->ip,'port'=>$this->load->port,'client'=>$this,'media_only'=>isset($this->load->media_only),'expires_at'=>$this->load->expires_at]));
 		$proxy = $this->settings->getProxy();
 		$this->mtproxy = (is_null($proxy) === false and strtoupper($proxy['type']) === 'MTPROXY') ? $this->inputClientProxy(address : parse_url($proxy['address'],PHP_URL_HOST),port : parse_url($proxy['address'],PHP_URL_PORT)) : null;
@@ -127,18 +127,10 @@ final class Client extends Caller implements Stringable {
 		} catch(\Throwable $error){
 			Logging::log('Client',$error->getMessage(),E_ERROR);
 		} finally {
-			EventLoop::queue($lock->release(...));
+			Loop::queue($lock->release(...));
 		}
 	}
 	public function switchDC(? int $dc_id = null,bool $cdn = false,bool $media = false,bool $tcpo = false,bool $next = false,bool $renew = false,int $expires_in = 0) : self {
-		/*
-		 * I needed to get new connections
-		if($this->load->dc === $dc_id and $cdn === false and $next === false and $expires_in === 0):
-			Logging::log('Client','There is no need to switch the data center , we use the same current data center');
-			return $this;
-		endif;
-		 * So I didn't need this part
-		 */
 		Logging::log('Client','Try switch dc ...');
 		if(isset($this->config) === false):
 			throw new \RuntimeException('To switch the datacenter , `init` needs to be called and executed first !');
@@ -186,7 +178,7 @@ final class Client extends Caller implements Stringable {
 		} catch(\Throwable $error){
 			Logging::log('Client',$error->getMessage(),E_NOTICE);
 		} finally {
-			EventLoop::queue($lock->release(...));
+			Loop::queue($lock->release(...));
 		}
 		throw new \Exception('There is a problem in creating the client for DC id '.$dc_id.' !');
 	}
@@ -311,7 +303,7 @@ final class Client extends Caller implements Stringable {
 		endif;
 		gc_collect_cycles();
 		if($run_until_disconnected):
-			EventLoop::run();
+			Loop::run();
 		endif;
 	}
 	public function stop() : void {

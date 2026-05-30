@@ -10,7 +10,7 @@ use Tak\Liveproto\Utils\Instance;
 
 use Tak\Liveproto\Utils\Logging;
 
-use Amp\DeferredFuture;
+use Tak\Asyncio\Promise\DeferredFuture;
 
 use Stringable;
 

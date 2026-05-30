@@ -4,7 +4,38 @@ declare(strict_types = 1);
 
 namespace Tak\Liveproto\Tl\Methods;
 
+use Tak\Liveproto\Attributes\Type;
+
 trait Inline {
+	protected function edit_inline(
+		#[Type('InputBotInlineMessageID')] object $id,
+		? string $message = null,
+		? string $parse_mode = null,
+		string | object | null $media = null,
+		array | null | object $reply_markup = null,
+		FileType $file_type = FileType::DOCUMENT,
+		array $uploaded = array(),
+		mixed ...$args
+	) : bool {
+		if(is_string($media)):
+			$inputMedia = $this->get_input_media_uploaded($media,$file_type,...$uploaded);
+		elseif(is_object($media)):
+			$inputMedia = $this->get_input_media($media);
+		else:
+			$inputMedia = null;
+		endif;
+		$inputReplyMarkup = is_array($reply_markup) ? $this->create_reply_markup($reply_markup) : $reply_markup;
+		$parser = match(strtolower(strval($parse_mode))){
+			'html' , 'htm' => $this->html(...),
+			'markdown' , 'markdownv2' , 'md' => $this->markdown(...),
+			default => null
+		};
+		if(is_null($parser) === false and is_null($message) === false):
+			list($message,$entities) = $parser($message);
+			$args['entities'] = $entities;
+		endif;
+		return $this->messages->editInlineBotMessage(...$args,id : $id,message : $message,media : $inputMedia,reply_markup : $inputReplyMarkup);
+	}
 	public function inline_query(
 		string | int | object $bot,
 		? string $query = null,

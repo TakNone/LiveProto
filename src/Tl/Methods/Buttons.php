@@ -9,6 +9,174 @@ use Tak\Liveproto\Crypto\Password;
 use Tak\Liveproto\Attributes\Type;
 
 trait Buttons {
+	public function create_reply_markup(
+		? array $keyboard = null,
+		? array $inline_keyboard = null,
+		bool $remove_keyboard = false,
+		bool $force_reply = false,
+		mixed ...$args
+	) : object {
+		if(is_array($keyboard)):
+			return $this->replyKeyboardMarkup(...$args,rows : array_map($this->compose_row(...),$keyboard));
+		elseif(is_array($inline_keyboard)):
+			return $this->replyInlineMarkup(...$args,rows : array_map($this->compose_row(...),$inline_keyboard));
+		elseif($remove_keyboard):
+			return $this->replyKeyboardHide(...$args);
+		elseif($force_reply):
+			return $this->replyKeyboardForceReply(...$args);
+		else:
+			throw new \InvalidArgumentException('No valid markup configuration provided');
+		endif;
+	}
+	public function compose_row(array $buttons) : object {
+		$column = array();
+		$approval = fn(array $button,array $requirements,array $optionals = []) : bool => array_all($requirements,fn(string $key) : bool => in_array($key,array_keys($button))) and empty(array_diff(array_keys($button),$requirements,$optionals));
+		$stripPrefix = fn(array $data,string $prefix) : array => array_combine(array_map(fn(string $key) : string => str_starts_with($key,$prefix) ? substr($key,strlen($prefix)) : $key,array_keys($data)),$data);
+		foreach($buttons as $button):
+			if(is_array($button) and array_is_list($button) === false):
+				$style = boolval(array_key_exists('style',$button) and is_string($button['style'])) ? strtolower($button['style']) : null;
+				$icon = boolval(array_key_exists('icon_custom_emoji_id',$button) and ctype_digit($button['icon_custom_emoji_id'])) ? intval($button['icon_custom_emoji_id']) : null;
+				$design = boolval(is_null($style) and is_null($icon)) ? null : $this->keyboardButtonStyle(bg_primary : boolval($style === 'primary'),bg_danger : boolval($style === 'danger'),bg_success : boolval($style === 'success'),icon : $icon);
+				unset($button['style'],$button['icon_custom_emoji_id']);
+				$column []= match(true){
+					$approval($button,['text']) => $this->keyboardButton(
+						text : strval($button['text']),
+						style : $design
+					),
+					$approval($button,['text','url']) => $this->keyboardButtonUrl(
+						text : strval($button['text']),
+						url : $button['url'],
+						style : $design
+					),
+					$approval($button,['text','callback_data'],['requires_password']) => $this->keyboardButtonCallback(
+						requires_password : boolval($button['requires_password'] ?? false),
+						text : strval($button['text']),
+						data : $button['callback_data'],
+						style : $design
+					),
+					$approval($button,['text','request_contact']) => boolval($button['request_contact']) ? $this->keyboardButtonRequestPhone(
+						text : strval($button['text']),
+						style : $design
+					) : $this->keyboardButton(
+						text : strval($button['text']),
+						style : $design
+					),
+					$approval($button,['text','request_location']) => boolval($button['request_location']) ? $this->keyboardButtonRequestGeoLocation(
+						text : strval($button['text']),
+						style : $design
+					) : $this->keyboardButton(
+						text : strval($button['text']),
+						style : $design
+					),
+					$approval($button,['text','switch_inline_query']) => $this->keyboardButtonSwitchInline(
+						text : strval($button['text']),
+						query : $button['switch_inline_query'],
+						style : $design
+					),
+					$approval($button,['text','switch_inline_query_current_chat']) => $this->keyboardButtonSwitchInline(
+						same_peer : true,
+						text : strval($button['text']),
+						query : $button['switch_inline_query_current_chat'],
+						style : $design
+					),
+					$approval($button,['text','switch_inline_query_chosen_chat']) => $this->keyboardButtonSwitchInline(
+						text : strval($button['text']),
+						query : strval($button['switch_inline_query_chosen_chat']['query'] ?? null),
+						peer_types : array_filter(array(
+							isset($button['switch_inline_query_chosen_chat']['allow_user_chats']) ? $this->inlineQueryPeerTypePM() : null,
+							isset($button['switch_inline_query_chosen_chat']['allow_bot_chats']) ? $this->inlineQueryPeerTypeBotPM() : null,
+							isset($button['switch_inline_query_chosen_chat']['allow_group_chats']) ? $this->inlineQueryPeerTypeChat() : null,
+							isset($button['switch_inline_query_chosen_chat']['allow_group_chats']) ? $this->inlineQueryPeerTypeMegagroup() : null,
+							isset($button['switch_inline_query_chosen_chat']['allow_channel_chats']) ? $this->inlineQueryPeerTypeBroadcast() : null
+						)),
+						style : $design
+					),
+					$approval($button,['text','callback_game']) => $this->keyboardButtonGame(
+						text : strval($button['text']),
+						style : $design
+					),
+					$approval($button,['text','pay']) => boolval($button['pay']) ? $this->keyboardButtonBuy(
+						text : strval($button['text']),
+						style : $design
+					) : $this->keyboardButton(
+						text : strval($button['text']),
+						style : $design
+					),
+					$approval($button,['text','login_url']) => $this->inputKeyboardButtonUrlAuth(
+						request_write_access : boolval($button['login_url']['request_write_access'] ?? false),
+						text : strval($button['text']),
+						fwd_text : boolval(is_array($button['login_url']) and array_key_exists('forward_text',$button['login_url'])) ? strval($button['login_url']['forward_text']) : null,
+						url : $button['login_url']['url'] ?? throw new \InvalidArgumentException('The login url does not provide url'),
+						bot : $this->get_input_user($button['login_url']['bot_username'] ?? 'bot'),
+						style : $design
+					),
+					$approval($button,['text','request_poll']) => $this->keyboardButtonRequestPoll(
+						quiz : boolval(is_array($button['request_poll']) and array_key_exists('type',$button['request_poll'])) ? $button['request_poll']['type'] === 'quiz' : false,
+						text : strval($button['text']),
+						style : $design
+					),
+					$approval($button,['text','mention_user']) => $this->inputKeyboardButtonUserProfile(
+						text : strval($button['text']),
+						user_id : $this->get_input_user($button['mention_user']),
+						style : $design
+					),
+					$approval($button,['text','web_app']) => boolval($button['web_app']['is_simple'] ?? false) ? $this->keyboardButtonSimpleWebView(
+						text : strval($button['text']),
+						url : $button['web_app']['url'] ?? throw new \InvalidArgumentException('The web app does not provide url'),
+						style : $design
+					) : $this->keyboardButtonWebView(
+						text : strval($button['text']),
+						url : $button['web_app']['url'] ?? throw new \InvalidArgumentException('The web app does not provide url'),
+						style : $design
+					),
+					// TODO : add support new TL //
+					# requestPeerTypeCreateBot#3e81e078 flags:# bot_managed:flags.0?true suggested_name:flags.1?string suggested_username:flags.2?string = RequestPeerType; #
+					$approval($button,['text','request_users']) => $this->inputKeyboardButtonRequestPeer(
+						name_requested : boolval($button['request_users']['request_name'] ?? false),
+						username_requested : boolval($button['request_users']['request_username'] ?? false),
+						photo_requested : boolval($button['request_users']['request_photo'] ?? false),
+						text : strval($button['text']),
+						button_id : $button['request_users']['request_id'] ?? 0,
+						peer_type : $this->requestPeerTypeUser(
+							bot : boolval($button['request_users']['user_is_bot'] ?? false),
+							premium : boolval($button['request_users']['user_is_premium'] ?? false)
+						),
+						max_quantity : $button['request_users']['max_quantity'] ?? 1,
+						style : $design
+					),
+					$approval($button,['text','request_chat']) => $this->inputKeyboardButtonRequestPeer(
+						name_requested : boolval($button['request_chat']['request_title'] ?? false),
+						username_requested : boolval($button['request_chat']['request_username'] ?? false),
+						photo_requested : boolval($button['request_chat']['request_photo'] ?? false),
+						text : strval($button['text']),
+						button_id : $button['request_chat']['request_id'] ?? 0,
+						peer_type : boolval($button['request_chat']['chat_is_channel'] ?? false) ? $this->requestPeerTypeBroadcast(
+							creator : boolval($button['request_chat']['chat_is_created'] ?? false),
+							has_username : boolval($button['request_chat']['chat_has_username'] ?? false),
+							user_admin_rights : boolval(is_array($button['request_chat']) and array_key_exists('user_administrator_rights',$button['request_chat'])) ? $this->chatAdminRights(...$stripPrefix($button['request_chat']['user_administrator_rights'],'can_')) : null,
+							bot_admin_rights : boolval(is_array($button['request_chat']) and array_key_exists('bot_administrator_rights',$button['request_chat'])) ? $this->chatAdminRights(...$stripPrefix($button['request_chat']['bot_administrator_rights'],'can_')) : null
+						) : $this->requestPeerTypeChat(
+							creator : boolval($button['request_chat']['chat_is_created'] ?? false),
+							bot_participant : boolval($button['request_chat']['bot_is_member'] ?? false),
+							has_username : boolval($button['request_chat']['chat_has_username'] ?? false),
+							forum : boolval($button['request_chat']['chat_is_forum'] ?? false),
+							user_admin_rights : boolval(is_array($button['request_chat']) and array_key_exists('user_administrator_rights',$button['request_chat'])) ? $this->chatAdminRights(...$stripPrefix($button['request_chat']['user_administrator_rights'],'can_')) : null,
+							bot_admin_rights : boolval(is_array($button['request_chat']) and array_key_exists('bot_administrator_rights',$button['request_chat'])) ? $this->chatAdminRights(...$stripPrefix($button['request_chat']['bot_administrator_rights'],'can_')) : null
+						),
+						max_quantity : $button['request_chat']['max_quantity'] ?? 1,
+						style : $design
+					),
+					$approval($button,['text','copy_text']) => $this->keyboardButtonCopy(
+						text : strval($button['text']),
+						copy_text : strval($button['copy_text']['text'] ?? $button['text']),
+						style : $design
+					),
+					default => throw new \InvalidArgumentException('The button is in invalid format : '.json_encode($button,flags : JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)) 
+				};
+			endif;
+		endforeach;
+		return $this->keyboardButtonRow(buttons : $column);
+	}
 	protected function click_button(
 		#[Type('Message')] object $message,
 		? int $i = null,

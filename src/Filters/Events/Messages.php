@@ -48,27 +48,27 @@ final class Messages extends Filter {
 			endif;
 		};
 		$event->respond = function(mixed ...$args) use($event) : object {
-			$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			$peer = $event->getPeer();
+			$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			return $event->send_content($peer,...$args);
 		};
 		$event->reply = function(mixed ...$args) use($event) : object {
+			$peer = $event->getPeer();
 			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
 			$args += ['reply_to'=>$event->inputReplyToMessage($event->message->id,...$reply_to),'businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
-			$peer = $event->getPeer();
 			return $event->send_content($peer,...$args);
 		};
 		$event->forward = function(mixed $peer,mixed ...$args) use($event) : object {
-			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
-			$args += empty($reply_to) ? [] : ['reply_to'=>(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			$to = $event->get_input_peer($peer);
 			$peer = $event->getPeer();
+			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
+			$args += empty($reply_to) ? [] : ['reply_to'=>boolval(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			return $event->getClient()->messages->forwardMessages($peer,array($event->message->id),array(random_int(PHP_INT_MIN,PHP_INT_MAX)),$to,...$args);
 		};
-		$event->edit = function(? string $message = null,? object $media = null,mixed ...$args) use($event) : object {
+		$event->edit = function(mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();
-			$args += ['message'=>$message,'media'=>$media,'businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
-			return $event->getClient()->messages->editMessage($peer,$event->message->id,...$args);
+			$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
+			return $event->edit_content($peer,$event->message->id,...$args);
 		};
 		$event->pin = function(mixed ...$args) use($event) : object {
 			$peer = $event->getPeer();

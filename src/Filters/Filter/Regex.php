@@ -50,6 +50,7 @@ final class Regex extends Filter {
 				return $update->regex->matched;
 			endif;
 		endif;
+		unset($update->regex->matched);
 		return false;
 	}
 	private function match(string $subject) : array {

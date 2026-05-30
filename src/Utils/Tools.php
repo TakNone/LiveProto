@@ -4,9 +4,9 @@ declare(strict_types = 1);
 
 namespace Tak\Liveproto\Utils;
 
-use function Amp\ByteStream\getStdin;
+use function Tak\Asyncio\ByteStream\getStdin;
 
-use function Amp\ByteStream\getStdout;
+use function Tak\Asyncio\ByteStream\getStdout;
 
 defined('STDOUT') || define('STDOUT',fopen('php://stdout','wb'));
 
@@ -15,9 +15,9 @@ abstract class Tools {
 		try {
 			$stdin = getStdin();
 			$stdout = getStdout();
-			if(is_null($prompt) === false) $stdout->write($prompt);
+			if(is_null($prompt) === false) $stdout->write(content : $prompt,cancellation : $cancellation);
 			static $lines = array(null);
-			while(count($lines) < 2 and ($chunk = $stdin->read($cancellation)) !== null):
+			while(count($lines) < 2 and ($chunk = $stdin->read(cancellation : $cancellation)) !== false):
 				$chunk = explode(chr(10),str_replace(array(chr(13),chr(10).chr(10)),chr(10),$chunk));
 				$lines[count($lines) - 1] .= array_shift($chunk);
 				$lines = array_merge($lines,$chunk);
@@ -28,7 +28,7 @@ abstract class Tools {
 		return strval(array_shift($lines));
 	}
 	static public function snakeTocamel(string $str) : string {
-		return str_replace('_',(string) null,ucwords($str,'_'));
+		return str_replace('_',strval(null),ucwords($str,'_'));
 	}
 	static public function camelTosnake(string $str) : string {
 		return strtolower(preg_replace('/([a-z])([A-Z])/','$1_$2',$str));

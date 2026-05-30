@@ -10,7 +10,7 @@
 ## 🚀 Features
 
 * **Full MTProto Protocol** : Complete implementation of Telegram's low-level protocol
-* **Asynchronous I/O** : Built with PHP 8's async primitives ( Fibers / Amp ), enabling non-blocking requests
+* **Asynchronous I/O** : Built with PHP 8's async primitives ( Fibers / Swoole / Asyncio ), enabling non-blocking requests
 * **Session Management** : Automatic key exchange, session storage, and reconnection logic
 * **Comprehensive API Coverage** : Send and receive messages, manage chats and channels, handle updates, upload/download media, and more
 

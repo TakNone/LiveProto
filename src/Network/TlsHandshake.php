@@ -10,25 +10,21 @@ use Tak\Liveproto\Utils\Logging;
 
 use Tak\Liveproto\Utils\TlsHello;
 
-use Amp\Socket\Socket;
-
-use Amp\Socket\SocketException;
-
-use League\Uri\Http;
+use Tak\Asyncio\Socket\StreamSocket;
 
 # https://github.com/DrKLO/Telegram/blob/ddc90f16be1ab952114005347e0102365ba6460b/TMessagesProj/jni/tgnet/ConnectionSocket.cpp #
 final class TlsHandshake {
 	public string $secret;
 	public string $secretDomain;
 
-	public function __construct(public string $target,public array $proxy){
+	public function __construct(public array $proxy){
 		list($this->secret,$this->secretDomain) = $this->separate(strval($proxy['secret']));
 	}
-	public function exchange(Socket $socket,bool $useLegacy) : object {
+	public function exchange(StreamSocket $socket,bool $useLegacy) : object {
 		$this->doHandshake($socket,$useLegacy);
 		return new TlsSocket($socket);
 	}
-	public function doHandshake(Socket $socket,bool $useLegacy) : void {
+	public function doHandshake(StreamSocket $socket,bool $useLegacy) : void {
 		$hello = new TlsHello($this->secretDomain);
 		$buffer = $hello->writeToBuffer($useLegacy ? TlsHello::OPS_LEGACY : TlsHello::OPS);
 		if(empty($buffer) === false):
@@ -42,7 +38,7 @@ final class TlsHandshake {
 		readBuffer:
 			do {
 				if($socket->isClosed()):
-					throw new SocketException('The connection may have been closed due to sending incorrect information to the proxy');
+					throw new \RuntimeException('The connection may have been closed due to sending incorrect information to the proxy');
 				else:
 					$chunk .= $socket->read() ?? throw new \RuntimeException('Connection closed by remote host ( EOF ) !');
 				endif;

@@ -42,11 +42,11 @@ use Tak\Liveproto\Errors\RpcError;
 
 use Tak\Attributes\AttributesEngine;
 
-use function Amp\async;
+use function Tak\Asyncio\async;
 
-use function Amp\delay;
+use function Tak\Asyncio\delay;
 
-use function Amp\Future\await;
+use function Tak\Asyncio\await;
 
 abstract class Caller {
 	use AttributesEngine {
@@ -222,17 +222,6 @@ final class Properties {
 					unset($arguments['takeout']);
 				endif;
 			endif;
-			/*
-			if(boolval(array_key_exists('takeout',$arguments) and $arguments['takeout'] === true) || boolval(array_key_exists('takeout',$arguments) === false and is_array($this->settings->takeout))):
-				$arguments['takeout'] = false;
-				$arguments['raw'] = true;
-				$request = call_user_func(__METHOD__,$name,$arguments);
-				return $this->parent->invokeWithTakeout($this->takeoutid,$request,...$filtered);
-			endif;
-			if(array_key_exists('takeout',$arguments)):
-				unset($arguments['takeout']);
-			endif;
-			*/
 			if(array_key_exists('receiveUpdates',$arguments)):
 				if($arguments['receiveUpdates'] === false):
 					unset($arguments['receiveUpdates']);

@@ -26,13 +26,13 @@ use Throwable;
 
 use Generator;
 
-use function Amp\async;
+use function Tak\Asyncio\async;
 
-use function Amp\File\openFile;
+use function Tak\Asyncio\File\openFile;
 
-use function Amp\File\isDirectory;
+use function Tak\Asyncio\File\isDirectory;
 
-use function Amp\File\move;
+use function Tak\Asyncio\File\move;
 
 trait Download {
 	private const ONE_MB = (1 << 20);
@@ -149,7 +149,6 @@ trait Download {
 				ignore_user_abort(false);
 				header('HTTP/1.1 200 OK');
 				header('Content-Type: application/octet-stream');
-				header('Accept-Ranges: bytes');
 				header('Content-Length: '.strlen($bytes));
 				header('Content-Disposition: attachment; filename='.rawurlencode($filename));
 				header('Cache-Control: private, must-revalidate');

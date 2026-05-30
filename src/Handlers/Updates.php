@@ -10,36 +10,34 @@ use Tak\Liveproto\Utils\Logging;
 
 use Tak\Liveproto\Filters\Filter;
 
-use Amp\DeferredFuture;
+use Tak\Asyncio\Promise\DeferredFuture;
 
-use Amp\DeferredCancellation;
+use Tak\Asyncio\DeferredCancellation;
 
-use Amp\TimeoutException;
+use Tak\Asyncio\Sync\Mutex;
 
-use Amp\Sync\LocalMutex;
+use Tak\Asyncio\Sync\Lock;
 
-use Amp\Sync\Lock;
-
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
 use Closure;
 
 use Throwable;
 
-use function Amp\async;
+use function Tak\Asyncio\async;
 
-use function Amp\delay;
+use function Tak\Asyncio\delay;
 
 final class Updates {
 	public readonly object $load;
 	private array $handlers = array();
 	private array $channelsPts = array();
-	protected LocalMutex $mutex;
+	protected Mutex $mutex;
 	protected Lock $lock;
 
 	public function __construct(public readonly object $client,private readonly object $session){
 		$this->load = $session->load();
-		$this->mutex = new LocalMutex;
+		$this->mutex = new Mutex;
 	}
 	public function addEventHandler(object | callable $callback,? string $unique = null,object | array ...$filters) : void {
 		if(is_object($callback) and is_a($callback,'Closure') === false):
@@ -71,7 +69,7 @@ final class Updates {
 		$unique = uniqid('LiveProto');
 		$deferredFuture = new DeferredFuture();
 		$checker = function(object $update) use($deferredFuture,$callback,&$checker,$unique) : void {
-			static $mutex = new LocalMutex;
+			static $mutex = new Mutex;
 			$lock = $mutex->acquire();
 			try {
 				if($deferredFuture->isComplete() === false):
@@ -94,11 +92,10 @@ final class Updates {
 			}
 			public function await() : mixed {
 				$future = $this->deferredFuture->getFuture();
-				$cancellation = $this->deferredCancellation->getCancellation();
 				if($this->timeout > 0):
-					EventLoop::unreference(EventLoop::delay($this->timeout,fn(string $id) : null => $this->cancel(new TimeoutException('Operation timed out'))));
+					Loop::unreference(Loop::delay($this->timeout,fn(string $id) : null => $this->cancel(new \Error('Operation timed out'))));
 				endif;
-				$update = $future->await($cancellation);
+				$update = $future->await($this->deferredCancellation);
 				return $update;
 			}
 			public function cancel(? Throwable $previous = null) : void {
@@ -337,7 +334,7 @@ final class Updates {
 				break; // I didn't want to take them all , I'll give it a chance to get the updates itself :) //
 			endforeach;
 		endif;
-		EventLoop::queue($unlock);
+		Loop::queue($unlock);
 	}
 	public function getChannelPts(int $channel_id) : int {
 		return key_exists($channel_id,$this->channelsPts) ? $this->channelsPts[$channel_id] : 1;

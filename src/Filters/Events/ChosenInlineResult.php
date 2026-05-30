@@ -41,7 +41,7 @@ final class ChosenInlineResult extends Filter {
 			if($event->msg_id === null):
 				throw new \Exception('The inline result does not contain a msg id');
 			else:
-				return $event->getClient()->messages->editInlineBotMessage($event->msg_id,...$args);
+				return $event->edit_inline($event->msg_id,...$args);
 			endif;
 		};
 		unset($event->addBoundMethods);

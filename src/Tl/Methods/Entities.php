@@ -13,6 +13,18 @@ use DOMNode;
 use DOMText;
 
 trait Entities {
+	public function parse_diff(string $oldText,string $newText) : array {
+		$diff = StringTools::diff($oldText,$newText);
+		$entities = [];
+		foreach($diff as $item):
+			$entities []= match($item['type']){
+				'replace' => $this->messageEntityDiffReplace(offset : $item['offset'],length : $item['length'],old_text : $item['old']),
+				'delete' => $this->messageEntityDiffDelete(offset : $item['offset'],length : $item['length']),
+				'insert' => $this->messageEntityDiffInsert(offset : $item['offset'],length : $item['length'])
+			};
+		endforeach;
+		return $entities;
+	}
 	public function markdown(string $text) : array {
 		$markdown = str_split($text);
 		$signs = [
@@ -204,6 +216,7 @@ trait Entities {
 			'q' , 'quote' , 'blockquote' => fn(int $offset,int $length) => $this->messageEntityBlockquote(offset : $offset,length : $length,collapsed : $node->hasAttribute('collapsed') ? true : null),
 			'pre' => fn(int $offset,int $length) => $this->messageEntityPre(offset : $offset,length : $length,language : ($code = $node->getElementsByTagName('code')->item(0) and $code->hasAttribute('class')) ? preg_replace('/^language-/',strval(null),$code->getAttribute('class')) : $node->getAttribute('language')),
 			'tg-emoji' , 'emoji' => fn(int $offset,int $length) => $this->messageEntityCustomEmoji(offset : $offset,length : $length,document_id : intval($node->hasAttribute('emoji-id') ? $node->getAttribute('emoji-id') : $node->getAttribute('id'))),
+			'tg-time' , 'time' => fn(int $offset,int $length) => boolval($node->hasAttribute('format') and preg_match('~^(?<format>r|w?[dD]?[tT]?)$~',$node->getAttribute('format'),$match)) ? $this->messageEntityFormattedDate(offset : $offset,length : $length,date : intval($node->hasAttribute('unix') ? $node->getAttribute('unix') : $node->getAttribute('date')),relative : str_contains($match['format'],'r'),day_of_week : str_contains($match['format'],'w'),short_date : str_contains($match['format'],'d'),long_date : str_contains($match['format'],'D'),short_time : str_contains($match['format'],'t'),long_time : str_contains($match['format'],'T')) : $this->messageEntityFormattedDate(offset : $offset,length : $length,date : intval($node->hasAttribute('unix') ? $node->getAttribute('unix') : $node->getAttribute('date'))),
 			'a' => fn(int $offset,int $length) => $this->href($offset,$length,$node->getAttribute('href')),
 			default => null
 		};
@@ -230,10 +243,13 @@ trait Entities {
 		return str_replace(['&','<','>'],['&amp;','&lt;','&gt;'],$text);
 	}
 	private function href(int $offset,int $length,string $href) : object {
-		if(preg_match('|^mention:(?<id>.+)|',$href,$matches) or preg_match('|^tg://user\\?id=(?<id>\d+)|',$href,$matches)):
+		if(preg_match('~^mention:(?<id>.+)~',$href,$matches) || preg_match('~^tg://user\\?id=(?<id>\d+)~',$href,$matches)):
 			return $this->inputMessageEntityMentionName(offset : $offset,length : $length,user_id : $this->get_input_user(filter_var($matches['id'],FILTER_VALIDATE_INT) ? intval($matches['id']) : $matches['id']));
-		elseif(preg_match('|^emoji:(?<id>\d+)$|',$href,$matches) or preg_match('|^tg://emoji\\?id=(?<id>\d+)|',$href,$matches)):
+		elseif(preg_match('~^emoji:(?<id>\d+)$~',$href,$matches) || preg_match('~^tg://emoji\\?id=(?<id>\d+)~',$href,$matches)):
 			return $this->messageEntityCustomEmoji(offset : $offset,length : $length,document_id : intval($matches['id']));
+		elseif(preg_match('~^time:(?<unix>\d+)(?:&format:(?<format>r|w?[dD]?[tT]?))?$~',$href,$matches) || preg_match('~^tg://time\?unix=(?<unix>\d+)(?:&format=(?<format>r|w?[dD]?[tT]?))?$~',$href,$matches)):
+			$format = strval(isset($matches['format']) ? $matches['format'] : null);
+			return $this->messageEntityFormattedDate(offset : $offset,length : $length,date : intval($matches['unix']),relative : str_contains($format,'r'),day_of_week : str_contains($format,'w'),short_date : str_contains($format,'d'),long_date : str_contains($format,'D'),short_time : str_contains($format,'t'),long_time : str_contains($format,'T'));
 		else:
 			return $this->messageEntityTextUrl(offset : $offset,length : $length,url : $href);
 		endif;
@@ -243,7 +259,7 @@ trait Entities {
 			$entity = $entities[$i] = clone $object;
 			$entity->text = StringTools::substr($text,$entity->offset,$entity->length);
 			if(isset($entity->url)):
-				$entity->open = fn() : string | false => @file_get_contents($entity->url);
+				$entity->open = static fn(mixed ...$args) : string | false => @file_get_contents($entity->url,...$args);
 			endif;
 		endforeach;
 		return $entities;

@@ -25,7 +25,7 @@ final class Password {
 		$x = gmp_import($this->ph2($password,$salt1,$salt2));
 		$v = gmp_powm($g,$x,$p);
 		$k_v = gmp_mod(gmp_mul($k,$v),$p);
-		$a = gmp_import(random_bytes(0x100));
+		$a = gmp_import($this->xor(random_bytes(0x100),$request->secure_random));
 		$g_a = gmp_powm($g,$a,$p);
 		Security::checkG(strval($g_a),$p,true);
 		$u = gmp_import($this->h($this->str($g_a).$this->str($request->srp_B)));

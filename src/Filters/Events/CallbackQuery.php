@@ -35,39 +35,38 @@ final class CallbackQuery extends Filter {
 			}
 		};
 		$event->respond = function(mixed ...$args) use($event) : object {
-			$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			$peer = $event->getPeer();
+			$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
 			return $event->send_content($peer,...$args);
 		};
 		$event->reply = function(mixed ...$args) use($event) : object {
 			if($event->class === 'updateBotCallbackQuery' or $event->class === 'updateBusinessBotCallbackQuery'):
+				$peer = $event->getPeer();
 				$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
 				$args += ['reply_to'=>$event->inputReplyToMessage(isset($event->message) ? $event->message->id : $event->msg_id,...$reply_to),'businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
-				$peer = $event->getPeer();
 				return $event->send_content($peer,...$args);
 			elseif($event->class === 'updateInlineBotCallbackQuery'):
 				throw new \Exception('This method is not available for this update');
 			endif;
 		};
 		$event->forward = function(mixed $peer,mixed ...$args) use($event) : object {
-			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
-			$args += empty($reply_to) ? [] : ['reply_to'=>(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			$to = $event->get_input_peer($peer);
 			$peer = $event->getPeer();
+			$reply_to = array_key_exists('input_reply_to',$args) ? $args['input_reply_to'] : [];
+			$args += empty($reply_to) ? [] : ['reply_to'=>boolval(isset($reply_to['peer']) || isset($reply_to['story_id'])) ? $event->inputReplyToStory(...$reply_to) : $event->inputReplyToMessage(...$reply_to)];
 			if($event->class === 'updateBotCallbackQuery'):
 				return $event->getClient()->messages->forwardMessages($peer,array($event->msg_id),array(random_int(PHP_INT_MIN,PHP_INT_MAX)),$to,...$args);
 			elseif($event->class === 'updateInlineBotCallbackQuery' or $event->class === 'updateBusinessBotCallbackQuery'):
 				throw new \Exception('This method is not available for this update');
 			endif;
 		};
-		$event->edit = function(? string $message = null,? object $media = null,mixed ...$args) use($event) : mixed {
+		$event->edit = function(mixed ...$args) use($event) : mixed {
 			$peer = $event->getPeer();
-			$args += ['message'=>$message,'media'=>$media];
 			if($event->class === 'updateBotCallbackQuery'or $event->class === 'updateBusinessBotCallbackQuery'):
 				$args += ['businessConnectionId'=>isset($event->connection_id) ? $event->connection_id : null];
-				return $event->getClient()->messages->editMessage($peer,($event->class === 'updateBotCallbackQuery' ? $event->msg_id : $event->message->id),...$args);
+				return $event->edit_content($peer,($event->class === 'updateBotCallbackQuery' ? $event->msg_id : $event->message->id),...$args);
 			elseif($event->class === 'updateInlineBotCallbackQuery'):
-				return $event->getClient()->messages->editInlineBotMessage($event->msg_id,...$args);
+				return $event->edit_inline($event->msg_id,...$args);
 			endif;
 		};
 		$event->pin = function(mixed ...$args) use($event) : object {

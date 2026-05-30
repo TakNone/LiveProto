@@ -6,7 +6,7 @@ namespace Tak\Liveproto\Ipc;
 
 use Tak\Liveproto\Utils\Logging;
 
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
 final class SignalHandler {
 	private mixed $fp;
@@ -50,10 +50,10 @@ final class SignalHandler {
 	public function register() : void {
 		if(extension_loaded('pcntl')):
 			foreach(self::STOP_SIGNALS as $signal => $reason):
-				EventLoop::unreference(EventLoop::onSignal($signal,fn() : null => $this->stop($reason)));
+				Loop::unreference(Loop::onSignal($signal,fn() : null => $this->stop($reason)));
 			endforeach;
 			foreach(self::RESTART_SIGNALS as $signal => $reason):
-				EventLoop::unreference(EventLoop::onSignal($signal,fn() : null => $this->restart($reason)));
+				Loop::unreference(Loop::onSignal($signal,fn() : null => $this->restart($reason)));
 			endforeach;
 		else:
 			Logging::log('Signal Handler','Signal handling requires pcntl extension !',E_WARNING);

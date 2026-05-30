@@ -26,10 +26,12 @@ trait Media {
 	}
 	protected function get_input_media(#[Type('MessageMedia')] Instance $messageMedia) : Instance {
 		return match($messageMedia->getClass()){
-			# inputMediaPhoto#b3ba0635 flags:# spoiler:flags.1?true id:InputPhoto ttl_seconds:flags.0?int = InputMedia; #
-			# messageMediaPhoto#695150d7 flags:# spoiler:flags.3?true photo:flags.0?Photo ttl_seconds:flags.2?int = MessageMedia; #
+			# inputMediaPhoto#e3af4434 flags:# spoiler:flags.1?true live_photo:flags.2?true id:InputPhoto ttl_seconds:flags.0?int videoq:flags.2?InputDocument = InputMedia; #
+			# messageMediaPhoto#e216eb63 flags:# spoiler:flags.3?true live_photo:flags.4?true photo:flags.0?Photo ttl_seconds:flags.2?int video:flags.4?Document = MessageMedia; #
 			'messageMediaPhoto' => is_null($messageMedia->photo) ? $this->inputMediaEmpty() : $this->inputMediaPhoto(
 				id : $this->inputify_media($messageMedia->photo),
+				live_photo : $messageMedia->live_photo,
+				video : is_null($messageMedia->video) ? null : $this->inputify_media($messageMedia->video),
 				spoiler : $messageMedia->spoiler,
 				ttl_seconds : $messageMedia->ttl_seconds
 			),
@@ -47,7 +49,7 @@ trait Media {
 				vcard : $messageMedia->vcard
 			),
 			# inputMediaDocument#a8763ab5 flags:# spoiler:flags.2?true id:InputDocument video_cover:flags.3?InputPhoto video_timestamp:flags.4?int ttl_seconds:flags.0?int query:flags.1?string = InputMedia; #
-			# messageMediaDocument#52d8ccd9 flags:# nopremium:flags.3?true spoiler:flags.4?true video:flags.6?true round:flags.7?true voice:flags.8?true document:flags.0?Document alt_documents:flags.5?Vector<Document> video_cover:flags.9?Photo video_timestamp:flags.10?int ttl_seconds:flags.2?int = MessageMedia; #
+			# messageMediaDocument#52d8ccd9 flags:# nopremium:flags.3?true spoiler:flags.4?true video:flags.6?true round:flags.7?true voice:flags.8?true live_photo:flags.11?true document:flags.0?Document alt_documents:flags.5?Vector<Document> video_cover:flags.9?Photo video_timestamp:flags.10?int ttl_seconds:flags.2?int = MessageMedia; #
 			'messageMediaDocument' => boolval(is_null($messageMedia->document) and is_null($messageMedia->alt_documents)) ? $this->inputMediaEmpty() : $this->inputMediaDocument(
 				spoiler : $messageMedia->spoiler,
 				id : isset($messageMedia->document) ? $this->inputify_media($messageMedia->document) : $this->inputify_media(current($messageMedia->alt_documents)),
@@ -111,13 +113,15 @@ trait Media {
 				period : $messageMedia->period,
 				proximity_notification_radius : $messageMedia->proximity_notification_radius
 			),
-			# inputMediaPoll#f94e5f1 flags:# poll:Poll correct_answers:flags.0?Vector<bytes> solution:flags.1?string solution_entities:flags.1?Vector<MessageEntity> = InputMedia; #
-			# messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia; #
+			# inputMediaPoll#883a4108 flags:# poll:Poll correct_answers:flags.0?Vector<int> attached_media:flags.3?InputMedia solution:flags.1?string solution_entities:flags.1?Vector<MessageEntity> solution_media:flags.2?InputMedia = InputMedia; #
+			# messageMediaPoll#773f4e66 flags:# poll:Poll results:PollResults attached_media:flags.0?MessageMedia = MessageMedia; #
 			'messageMediaPoll' => $this->inputMediaPoll(
 				poll : $messageMedia->poll,
-				correct_answers : array_column(array_filter($messageMedia->results->results,fn(object $pollAnswerVoters) : bool => boolval($pollAnswerVoters->correct)),'option'),
+				correct_answers : array_filter($messageMedia->results->results,fn(object $pollAnswerVoters) : bool => boolval($pollAnswerVoters->correct)),
+				attached_media : is_null($messageMedia->attached_media) ? null : $this->get_input_media($messageMedia->attached_media),
 				solution : $messageMedia->results->solution,
-				solution_entities : $messageMedia->results->solution_entities
+				solution_entities : $messageMedia->results->solution_entities,
+				solution_media : is_null($messageMedia->results->solution_media) ? null : $this->get_input_media($messageMedia->results->solution_media)
 			),
 			# inputMediaDice#e66fbf7b emoticon:string = InputMedia; #
 			# messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia; #
@@ -156,9 +160,9 @@ trait Media {
 	public function get_input_media_uploaded(string $path,FileType $file_type,mixed ...$arguments) : mixed {
 		$inputFile = $this->upload_file($path);
 		return match($file_type){
-			# inputMediaUploadedPhoto#1e287d04 flags:# spoiler:flags.2?true file:InputFile stickers:flags.0?Vector<InputDocument> ttl_seconds:flags.1?int = InputMedia; #
+			# inputMediaUploadedPhoto#7d8375da flags:# spoiler:flags.2?true live_photo:flags.3?true file:InputFile stickers:flags.0?Vector<InputDocument> ttl_seconds:flags.1?int video:flags.3?InputDocument = InputMedia; #
 			FileType::PHOTO => $this->inputMediaUploadedPhoto($inputFile,...$arguments),
-			# inputMediaUploadedDocument#37c9330 flags:# nosound_video:flags.3?true force_file:flags.4?true spoiler:flags.5?true file:InputFile thumb:flags.2?InputFile mime_type:string attributes:Vector<DocumentAttribute> stickers:flags.0?Vector<InputDocument> video_cover:flags.6?InputPhoto video_timestamp:flags.7?int ttl_seconds:flags.1?int = InputMedia; #
+			# inputMediaUploadedDocument#37c9330 flags:# nosound_video:flags.3?true force_file:flags.4?true spoiler:flags.5?true live_photo:flags.8?true file:InputFile thumb:flags.2?InputFile mime_type:string attributes:Vector<DocumentAttribute> stickers:flags.0?Vector<InputDocument> video_cover:flags.6?InputPhoto video_timestamp:flags.7?int ttl_seconds:flags.1?int = InputMedia; #
 			default => $this->inputMediaUploadedDocument($inputFile,strval(mime_content_type($path)),...array_merge(['attributes'=>array($this->documentAttributeFilename(file_name : basename($path)))],$arguments))
 		};
 	}
@@ -168,7 +172,7 @@ trait Media {
 		$len = strlen($bytes);
 		for($i = 0; $i < $len; $i++):
 			$num = ord($bytes[$i]);
-			if ($num >= 192):
+			if($num >= 192):
 				$idx = $num - 192;
 				$path .= $lookup[$idx];
 			else:

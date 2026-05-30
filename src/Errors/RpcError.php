@@ -6,7 +6,7 @@ namespace Tak\Liveproto\Errors;
 
 use Exception;
 
-use function Amp\File\read;
+use function Tak\Asyncio\File\read;
 
 final class RpcError extends Exception {
 	protected string $type;

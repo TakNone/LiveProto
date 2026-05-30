@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Tak\Liveproto\Database;
 
-use Revolt\EventLoop;
+use Tak\Asyncio\Loop;
 
 use ArrayAccess;
 
@@ -32,7 +32,7 @@ final class Content implements ArrayAccess {
 					$this->pending = strval(null);
 					$this->session->save();
 				elseif(empty($this->pending)):
-					$this->pending = EventLoop::unreference(EventLoop::delay($sleep,fn(string $id) : null => $this->save(true)));
+					$this->pending = Loop::unreference(Loop::delay($sleep,fn(string $id) : null => $this->save(true)));
 				endif;
 			endif;
 		else:
