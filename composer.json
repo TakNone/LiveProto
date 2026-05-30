@@ -26,12 +26,16 @@
     "authors": [
         {
             "name": "Tak None",
-            "email": "MrTakNone@gmail.com"
+            "email": "MrTakNone@gmail.com",
+            "role": "Developer"
         }
     ],
     "minimum-stability": "beta",
     "require": {
-        "php-64bit": ">=8.2",
+        "php-64bit": ">=8.4",
+        "taknone/asyncio": "*",
+        "taknone/attributes": "*",
+        "taknone/bootstrapper": "*"
         "ext-openssl": "*",
         "ext-gmp": "*",
         "ext-json": "*",
@@ -41,18 +45,16 @@
         "ext-hash": "*",
         "ext-zlib": "*",
         "ext-fileinfo": "*",
-        "amphp/amp": "^3.1.0",
-        "amphp/websocket-client": "^2.0.1",
-        "amphp/socket": "^2.3.1",
-        "amphp/file": "^3.2.0",
-        "amphp/mysql": "^3",
-        "phpseclib/phpseclib": "^3.0.46",
-        "taknone/attributes": "*",
-        "taknone/bootstrapper": "*"
+        "phpseclib/phpseclib": "^3.0.46"
     },
     "config": {
         "allow-plugins": {
             "taknone/bootstrapper": true
         }
+    },
+    "suggest": {
+        "ext-swoole": "Required for high-performance Swoole coroutine support ( > 5.0.0 )",
+        "ext-tgcrypto": "Speeds up encryption / decryption processes for Telegram MTproto",
+        "ext-pcntl": "Allows for better signal handling"
     }
 }
