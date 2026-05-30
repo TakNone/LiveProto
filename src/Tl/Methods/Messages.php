@@ -113,7 +113,7 @@ trait Messages {
 		endforeach;
 		return count($drafteds) > 1 ? $drafteds : reset($drafteds);
 	}
-	*/ TODO : Add messages.getPersonalChannelHistory method to make supporting completely */
+	/* TODO : Add messages.getPersonalChannelHistory method to make supporting completely */
 	protected function fetch_messages(
 		string | int | null | object $peer = null,
 		string | int | null | object $offset_peer = null,
