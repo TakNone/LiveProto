@@ -17,7 +17,7 @@ final class Content implements ArrayAccess {
 	public function __construct(public array $data,protected float $savetime){
 		$this->cloned = false;
 		$this->lastsave = microtime(true);
-		register_shutdown_function(fn() : null => $this->save(true));
+		/* register_shutdown_function(fn() : null => $this->save(true)); */
 	}
 	public function setSession(Session $session) : self {
 		$this->session = $session;
@@ -91,9 +91,11 @@ final class Content implements ArrayAccess {
 			'data'=>$this->data
 		);
 	}
+	/*
 	public function __wakeup() : void {
 		register_shutdown_function(fn() : null => $this->save(true));
 	}
+	*/
 }
 
 ?>

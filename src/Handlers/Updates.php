@@ -32,12 +32,14 @@ final class Updates {
 	public readonly object $load;
 	private array $handlers = array();
 	private array $channelsPts = array();
-	protected Mutex $mutex;
-	protected Lock $lock;
+	protected Mutex $recoveryMutex;
+	protected Lock $recoveryLock;
+	protected Mutex $completion;
 
 	public function __construct(public readonly object $client,private readonly object $session){
 		$this->load = $session->load();
-		$this->mutex = new Mutex;
+		$this->recoveryMutex = new Mutex;
+		$this->completion = new Mutex;
 	}
 	public function addEventHandler(object | callable $callback,? string $unique = null,object | array ...$filters) : void {
 		if(is_object($callback) and is_a($callback,'Closure') === false):
@@ -69,11 +71,10 @@ final class Updates {
 		$unique = uniqid('LiveProto');
 		$deferredFuture = new DeferredFuture();
 		$checker = function(object $update) use($deferredFuture,$callback,&$checker,$unique) : void {
-			static $mutex = new Mutex;
-			$lock = $mutex->acquire();
+			$lock = $this->completion->acquire();
 			try {
 				if($deferredFuture->isComplete() === false):
-					if(is_null($callback) or async($callback,$update)->await()):
+					if(is_null($callback) || async($callback,$update)->await()):
 						$deferredFuture->complete($update);
 						$this->removeEventHandler($checker,$unique);
 					endif;
@@ -119,7 +120,7 @@ final class Updates {
 				return;
 			elseif($state->seq + 1 < $update->seq_start):
 				Logging::log('Update Missed','local seq = '.$state->seq.' (+) 1 (<) seq_start = '.$update->seq_start);
-				($recovery and isset($this->lock) === false) ? $this->recoveringGaps() : delay(0.5);
+				($recovery and isset($this->recoveryLock) === false) ? $this->recoveringGaps() : delay(0.5);
 				$this->applyUpdate($update,true);
 				return;
 			endif;
@@ -145,7 +146,7 @@ final class Updates {
 				return;
 			elseif($state->qts + $update->qts_count < $update->qts):
 				Logging::log('Update Missed','local qts = '.$state->qts.' (+) qts count = '.$update->qts_count.' (<) qts = '.$update->qts);
-				($recovery and isset($this->lock) === false) ? $this->recoveringGaps() : delay(0.5);
+				($recovery and isset($this->recoveryLock) === false) ? $this->recoveringGaps() : delay(0.5);
 				$this->applyUpdate($update,true);
 				return;
 			endif;
@@ -163,7 +164,7 @@ final class Updates {
 					return;
 				elseif($state->pts + $update->pts_count < $update->pts):
 					Logging::log('Update Missed','local pts = '.$state->pts.' (+) pts count = '.$update->pts_count.' (<) pts = '.$update->pts);
-					($recovery and isset($this->lock) === false) ? $this->recoveringGaps() : delay(0.5);
+					($recovery and isset($this->recoveryLock) === false) ? $this->recoveringGaps() : delay(0.5);
 					$this->applyUpdate($update,true);
 					return;
 				endif;
@@ -298,12 +299,12 @@ final class Updates {
 		return $this->load->state;
 	}
 	public function recoveringGaps() : void {
-		$isLocked = isset($this->lock);
-		$this->lock = $this->mutex->acquire();
+		$isLocked = isset($this->recoveryLock);
+		$this->recoveryLock = $this->recoveryMutex->acquire();
 		$unlock = function() : void {
-			if(isset($this->lock)):
-				$lock = $this->lock;
-				unset($this->lock);
+			if(isset($this->recoveryLock)):
+				$lock = $this->recoveryLock;
+				unset($this->recoveryLock);
 				$lock->release();
 			endif;
 		};

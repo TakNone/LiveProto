@@ -343,7 +343,7 @@ final class Client extends Caller implements Stringable {
 				$this->transport->close();
 			endif;
 			$this->connected = false;
-			$this->load->save();
+			$this->load->save(true);
 		else:
 			Logging::log('Client','You are not connected yet to disconnect !',E_ERROR);
 		endif;
