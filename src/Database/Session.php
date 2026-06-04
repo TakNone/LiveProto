@@ -148,7 +148,7 @@ final class Session {
 		return $this->content;
 	}
 	public function save() : void {
-		if(is_null($this->name) === false):
+		if(Tools::inDestructor() === false and is_null($this->name) === false):
 			switch($this->mode):
 				case 'string':
 					$file = '.'.DIRECTORY_SEPARATOR.$this->name.'.session';

@@ -20,10 +20,10 @@ final class SQLite implements AbstractDB , AbstractPeers {
 	public function __construct(string $path){
 		$this->connection = new PDO('sqlite:'.$path);
 		$this->connection->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+		$this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE,PDO::FETCH_ASSOC);
 	}
 	public function init(string $table) : bool {
-		$stmt = $this->connection->query('SELECT name FROM sqlite_master WHERE type = \'table\' AND name = '.chr(39).$table.chr(39));
-		if($stmt->fetch(PDO::FETCH_ASSOC)):
+		if($this->connection->query('SELECT name FROM sqlite_master WHERE type = \'table\' AND name = '.chr(39).$table.chr(39))->fetch()):
 			return false;
 		else:
 			$this->connection->exec(
@@ -50,9 +50,12 @@ final class SQLite implements AbstractDB , AbstractPeers {
 		}
 	}
 	public function get(string $table) : array | null {
-		$stmt = $this->connection->query('SELECT * FROM '.$table);
-		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		return $row === false ? null : $row;
+		$stmt = $this->connection->query('SELECT * FROM '.$table.' LIMIT 1');
+		if($datas = $stmt->fetch()){
+			return $this->castTypes($table,$datas);
+		} else {
+			return null;
+		}
 	}
 	public function delete(string $table,string $key) : void {
 		$this->connection->exec('UPDATE '.$table.' SET `'.$key.'` = NULL');
@@ -60,13 +63,12 @@ final class SQLite implements AbstractDB , AbstractPeers {
 	public function exists(string $table,string $key) : bool {
 		$columnsStmt = $this->connection->prepare('PRAGMA table_info('.$table.')');
 		$columnsStmt->execute();
-		$columns = $columnsStmt->fetchAll(PDO::FETCH_ASSOC);
+		$columns = $columnsStmt->fetchAll();
 		$fields = array_column($columns,'name');
 		return in_array($key,$fields);
 	}
 	public function initPeer(string $table) : bool {
-		$stmt = $this->connection->query('SELECT name FROM sqlite_master WHERE type = \'table\' AND name = '.chr(39).$table.chr(39));
-		if($stmt->fetch(PDO::FETCH_ASSOC)):
+		if($this->connection->query('SELECT name FROM sqlite_master WHERE type = \'table\' AND name = '.chr(39).$table.chr(39))->fetch()):
 			return false;
 		else:
 			$this->connection->exec(
@@ -82,10 +84,9 @@ final class SQLite implements AbstractDB , AbstractPeers {
 		$lock = $mutex->acquire();
 		try {
 			$keys = array_keys($value);
-			$values = array_values($value);
 			$columnsStmt = $this->connection->prepare('PRAGMA table_info('.$table.')');
 			$columnsStmt->execute();
-			$columns = $columnsStmt->fetchAll(PDO::FETCH_ASSOC);
+			$columns = $columnsStmt->fetchAll();
 			$fields = array_column($columns,'name');
 			foreach($value as $k => $v):
 				if(in_array($k,$fields) === false):
@@ -112,11 +113,25 @@ final class SQLite implements AbstractDB , AbstractPeers {
 	public function getPeer(string $table,string $key,mixed $value) : array | null {
 		$stmt = $this->connection->prepare('SELECT * FROM '.$table.' WHERE '.$key.' = :value');
 		$stmt->execute(['value'=>$value]);
-		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		return $row === false ? null : $row;
+		if($datas = $stmt->fetch()){
+			return $this->castTypes($table,$datas);
+		} else {
+			return null;
+		}
 	}
 	public function deletePeer(string $table,string $key,mixed $value) : void {
 		$this->connection->prepare('DELETE FROM '.$table.' WHERE '.$key.' = :value')->execute(['value'=>$value]);
+	}
+	private function castTypes(string $table,array $datas) : array {
+		$stmt = $this->connection->query('PRAGMA table_info('.$table.')');
+		while($column = $stmt->fetch()){
+			$field = strval($column['name'] ?? null);
+			$type = strval($column['type'] ?? null);
+			if(array_key_exists($field,$datas)){
+				$datas[$field] = Tools::specifyType($type,$datas[$field]);
+			}
+		}
+		return $datas;
 	}
 }
 

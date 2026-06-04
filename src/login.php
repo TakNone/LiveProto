@@ -2,6 +2,8 @@
 
 declare(strict_types = 1);
 
+use Tak\Liveproto\Utils\Logging;
+
 use Tak\Liveproto\Network\Client;
 
 use Tak\Liveproto\Enums\Authentication;
@@ -27,6 +29,8 @@ SVG);
 if(isset($this) === false or ($this instanceof Client) === false){
 	throw new \LogicException('login.php must be included from Client::start()');
 }
+
+Logging::$hide = true;
 
 $step = $this->load->step;
 
@@ -586,13 +590,11 @@ $stage = $this->load->step->value;
 </html>
 <?php
 
-ob_start();
-
 if($stage < 7){
+	ob_start();
 	$this->stop();
-	exit();
+	ob_end_clean();
+	die();
 }
-
-ob_end_clean();
 
 ?>

@@ -114,6 +114,14 @@ Loop::unreference(Loop::repeat(1.00,function() use($client,$handler) : void {
 	}
 }));
 
-$client->start();
+Loop::queue(static function() use($client) : void {
+	try {
+		$client->start();
+	} finally {
+		$client->stop();
+	}
+});
+
+Loop::run();
 
 ?>

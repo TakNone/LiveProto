@@ -17,7 +17,7 @@ abstract class Tools {
 			$stdout = getStdout();
 			if(is_null($prompt) === false) $stdout->write(content : $prompt,cancellation : $cancellation);
 			static $lines = array(null);
-			while(count($lines) < 2 and ($chunk = $stdin->read(cancellation : $cancellation)) !== false):
+			while(count($lines) < 2 and is_null($chunk = $stdin->read(cancellation : $cancellation)) === false):
 				$chunk = explode(chr(10),str_replace(array(chr(13),chr(10).chr(10)),chr(10),$chunk));
 				$lines[count($lines) - 1] .= array_shift($chunk);
 				$lines = array_merge($lines,$chunk);
@@ -194,6 +194,17 @@ abstract class Tools {
 			default => 'VARCHAR (1024)' // mb_strlen(strval($data)) //
 		};
 		return $type;
+	}
+	static public function specifyType(string $type,mixed $data) : mixed {
+		$type = strtoupper(trim($type));
+		return match(true){
+			str_starts_with($type,'BOOLEAN') => boolval($data),
+			str_starts_with($type,'BIGINT') => is_numeric($data) ? intval($data) : $data,
+			str_starts_with($type,'REAL') => floatval($data),
+			str_starts_with($type,'TEXT') , str_starts_with($type,'VARCHAR') => strval($data),
+			str_starts_with($type,'LONGTEXT') => json_validate($data) ? json_decode($data,true) : $data,
+			default => $data
+		};
 	}
 	static public function is_valid_mysql_identifier_unicode(string $name) : bool {
 		/*

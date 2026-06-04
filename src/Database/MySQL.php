@@ -18,11 +18,12 @@ final class MySQL implements AbstractDB , AbstractPeers {
 	protected object $connection;
 
 	public function __construct(string $server,string $username,string $password,string $database){
-		$this->connection = new PDO('mysql:host='.$server.'; dbname='.$database.'; charset=utf8mb4',$username,$password,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
+		$this->connection = new PDO('mysql:host='.$server.'; dbname='.$database.'; charset=utf8mb4',$username,$password);
+		$this->connection->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+		$this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE,PDO::FETCH_ASSOC);
 	}
 	public function init(string $table) : bool {
-		$stmt = $this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39));
-		if($stmt->fetch() and $this->connection->query('SELECT * FROM '.$table.' LIMIT 1')->fetch()){
+		if($this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39))->fetch() and $this->connection->query('SELECT * FROM '.$table.' LIMIT 1')->fetch()){
 			return false;
 		} else {
 			$this->connection->exec('CREATE TABLE IF NOT EXISTS '.$table.' (`id` BIGINT NOT NULL DEFAULT 0) DEFAULT CHARSET=utf8mb4');
@@ -46,7 +47,11 @@ final class MySQL implements AbstractDB , AbstractPeers {
 	}
 	public function get(string $table) : array | null {
 		$stmt = $this->connection->query('SELECT * FROM '.$table.' LIMIT 1');
-		return $stmt->fetch() ?: null;
+		if($datas = $stmt->fetch()){
+			return $this->castTypes($table,$datas);
+		} else {
+			return null;
+		}
 	}
 	public function delete(string $table,string $key) : void {
 		$this->connection->exec('ALTER TABLE '.$table.' DROP COLUMN '.$key);
@@ -57,8 +62,7 @@ final class MySQL implements AbstractDB , AbstractPeers {
 		return in_array($key,$columns);
 	}
 	public function initPeer(string $table) : bool {
-		$stmt = $this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39));
-		if($stmt->fetch()){
+		if($this->connection->query('SHOW TABLES LIKE '.chr(39).$table.chr(39))->fetch()){
 			return false;
 		} else {
 			$this->connection->exec('CREATE TABLE IF NOT EXISTS '.$table.' (`id` BIGINT PRIMARY KEY) DEFAULT CHARSET=utf8mb4');
@@ -87,10 +91,25 @@ final class MySQL implements AbstractDB , AbstractPeers {
 	public function getPeer(string $table,string $key,mixed $value) : array | null {
 		$stmt = $this->connection->prepare('SELECT * FROM '.$table.' WHERE '.$key.' = :value');
 		$stmt->execute(['value'=>$value]);
-		return $stmt->fetch() ?: null;
+		if($datas = $stmt->fetch()){
+			return $this->castTypes($table,$datas);
+		} else {
+			return null;
+		}
 	}
 	public function deletePeer(string $table,string $key,mixed $value) : void {
 		$this->connection->prepare('DELETE FROM '.$table.' WHERE '.$key.' = :value')->execute(['value'=>$value]);
+	}
+	private function castTypes(string $table,array $datas) : array {
+		$stmt = $this->connection->query('SHOW COLUMNS FROM '.$table);
+		while($column = $stmt->fetch()){
+			$field = strval($column['Field'] ?? null);
+			$type = strval($column['Type'] ?? null);
+			if(array_key_exists($field,$datas)){
+				$datas[$field] = Tools::specifyType($type,$datas[$field]);
+			}
+		}
+		return $datas;
 	}
 }
 

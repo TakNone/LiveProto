@@ -35,6 +35,8 @@ use Tak\Liveproto\Filters\Interfaces\Inline;
 
 use Tak\Liveproto\Enums\CommandType;
 
+use Tak\Asyncio\Loop;
+
 use function Tak\Asyncio\delay;
 
 $settings = new Settings();
@@ -130,19 +132,27 @@ function vardump(Incoming | NotMessage $update) : void {
 	var_dump($update);
 }
 
-$client = new Client('test-bot','string',$settings);
+Loop::queue(static function() use($settings) : void {
+	try {
+		$client = new Client('test-bot','string',$settings);
 
-$client->connect();
+		$client->connect();
 
-try {
-	if($client->isAuthorized() === false){
-		$client->sign_in(bot_token : '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11');
+		try {
+			if($client->isAuthorized() === false){
+				$client->sign_in(bot_token : '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11');
+			}
+			var_dump($client->get_me());
+		} catch(Throwable $e){
+			var_dump($e);
+		}
+
+		$client->start();
+	} finally {
+		$client->stop();
 	}
-	var_dump($client->get_me());
-} catch(Throwable $e){
-	var_dump($e);
-}
+});
 
-$client->start();
+Loop::run();
 
 ?>
