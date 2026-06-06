@@ -6,6 +6,8 @@ namespace Tak\Liveproto\Network;
 
 use Tak\Liveproto\Crypto\Obfuscation;
 
+use Tak\Liveproto\Network\Proxy\Uri;
+
 use Tak\Liveproto\Network\Proxy\Socks5SocketConnector;
 
 use Tak\Liveproto\Network\Proxy\Socks4SocketConnector;
