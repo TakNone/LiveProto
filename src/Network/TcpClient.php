@@ -24,6 +24,9 @@ final class TcpClient {
 
 	public function __construct(int $domain){
 		$this->socket = new StreamSocket($domain);
+		if(defined('TCP_KEEPIDLE')):
+			$this->socket->setOption(TCP_KEEPIDLE,5,SOL_TCP);
+		endif;
 	}
 	public function connect(string $ip,int $port,? array $proxy = null) : void {
 		if(is_null($proxy)):

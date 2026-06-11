@@ -129,8 +129,6 @@ trait Buttons {
 						url : $button['web_app']['url'] ?? throw new \InvalidArgumentException('The web app does not provide url'),
 						style : $design
 					),
-					// TODO : add support new TL //
-					# requestPeerTypeCreateBot#3e81e078 flags:# bot_managed:flags.0?true suggested_name:flags.1?string suggested_username:flags.2?string = RequestPeerType; #
 					$approval($button,['text','request_users']) => $this->inputKeyboardButtonRequestPeer(
 						name_requested : boolval($button['request_users']['request_name'] ?? false),
 						username_requested : boolval($button['request_users']['request_username'] ?? false),
@@ -164,6 +162,20 @@ trait Buttons {
 							bot_admin_rights : boolval(is_array($button['request_chat']) and array_key_exists('bot_administrator_rights',$button['request_chat'])) ? $this->chatAdminRights(...$stripPrefix($button['request_chat']['bot_administrator_rights'],'can_')) : null
 						),
 						max_quantity : $button['request_chat']['max_quantity'] ?? 1,
+						style : $design
+					),
+					$approval($button,['text','request_managed_bot']) => $this->inputKeyboardButtonRequestPeer(
+						// name_requested : boolval($button['request_managed_bot']['request_name'] ?? false),
+						// username_requested : boolval($button['request_managed_bot']['request_username'] ?? false),
+						// photo_requested : boolval($button['request_managed_bot']['request_photo'] ?? false),
+						text : strval($button['text']),
+						button_id : $button['request_managed_bot']['request_id'] ?? 0,
+						peer_type : $this->requestPeerTypeCreateBot(
+							bot_managed : true,
+							suggested_name : $button['request_managed_bot']['suggested_name'] ?? null,
+							suggested_username : $button['request_managed_bot']['suggested_username'] ?? null
+						),
+						max_quantity : $button['request_managed_bot']['max_quantity'] ?? 1,
 						style : $design
 					),
 					$approval($button,['text','copy_text']) => $this->keyboardButtonCopy(

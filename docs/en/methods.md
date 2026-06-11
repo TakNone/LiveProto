@@ -346,6 +346,130 @@ $client->wait_token(timeout : 60);
 
 ---
 
+## create_reply_markup()
+
+Creates a Telegram reply markup object. Supports reply keyboards, inline keyboards, keyboard removal, and force reply markups
+
+Usable by :
+- [ ] Users
+- [x] Bots
+
+> [!NOTE]
+> Array
+
+##### <pre>Arguments</pre>
+- keyboard(<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Array of keyboard rows used to create a reply keyboard markup
+
+- inline_keyboard(<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Array of keyboard rows used to create an inline keyboard markup
+
+- remove_keyboard(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
+  - Whether to remove the currently displayed custom keyboard
+
+- force_reply(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
+  - Whether to force the user to reply to the message
+
+- ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
+  - Additional parameters passed directly to the underlying Telegram reply markup constructor
+
+##### <pre>Returns</pre>
+An instance of [ReplyMarkup](https://tl.liveproto.dev/#/type/ReplyMarkup)
+
+##### <pre>Example</pre>
+```php
+$inputReplyMarkup = $client->create_reply_markup(
+	keyboard : [
+		[['text'=>'Hello','icon_custom_emoji_id'=>5820916017458583465],['text'=>'World','icon_custom_emoji_id'=>5820916017458583465]]
+	]
+);
+
+$inputReplyMarkup = $client->create_reply_markup(
+	inline_keyboard : [
+		[['text'=>'Website','url'=>'https://docs.liveproto.dev','icon_custom_emoji_id'=>5820916017458583465,'style'=>'danger']],
+		[['text'=>'Channel','url'=>'https://liveproto.t.me','icon_custom_emoji_id'=>5820916017458583465,'style'=>'success']]
+	]
+);
+
+$inputReplyMarkup = $client->create_reply_markup(
+	remove_keyboard : true
+);
+
+$inputReplyMarkup = $client->create_reply_markup(
+	force_reply : true
+);
+
+$peer = $client->get_input_peer('@TakNone');
+$client->messages->sendMessage(peer : $peer,message : 'Testing ReplyMarkups',random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),reply_markup : $inputReplyMarkup);
+```
+
+---
+
+## compose_row()
+
+Converts an array of Bot API style button definitions into a Telegram keyboard button row object
+
+Usable by :
+- [ ] Users
+- [x] Bots
+
+> [!NOTE]
+> Array
+
+##### <pre>Arguments</pre>
+- buttons(<small>array</small>) <kbd style="color : red">required</kbd> :
+  - Array of button definitions in Bot API format
+
+##### <pre>Returns</pre>
+An instance of [KeyboardButtonRow](https://tl.liveproto.dev/#/constructor/keyboardButtonRow)
+
+##### <pre>Example</pre>
+```php
+$buttonRowOne = $client->compose_row([
+	[
+		'text'=>'Visit Website',
+		'url'=>'https://docs.liveproto.dev',
+		'style'=>'primary'
+	],
+	[
+		'text'=>'Callback Button',
+		'callback_data'=>'hello',
+		'icon_custom_emoji_id'=>5820916017458583465
+	]
+]);
+
+$buttonRowTwo = $client->compose_row([
+	[
+		'text'=>'Open Mini App',
+		'web_app'=>[
+			'url'=>'https://tl.liveproto.dev'
+		]
+	]
+]);
+
+$inputReplyMarkup = $client->replyInlineMarkup(rows : array($buttonRowOne,$buttonRowTwo));
+
+
+$buttonRow = $client->compose_row([
+	[
+		'text'=>'Share Contact',
+		'request_contact'=>true
+	],
+	[
+		'text'=>'Share Location',
+		'request_location'=>true
+	]
+]);
+
+$inputReplyMarkup = $client->replyKeyboardMarkup(rows : array($buttonRow));
+
+
+$peer = $client->get_input_peer('@TakNone');
+$client->messages->sendMessage(peer : $peer,message : 'Testing ReplyMarkups',random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),reply_markup : $inputReplyMarkup);
+```
+
+---
+
 ## click_button()
 
 Clicks on an inline button within a message
@@ -1123,6 +1247,40 @@ $client->download_media(destination : './file.tgs',media : $document,progresscal
 
 ---
 
+## parse_diff()
+
+Generates Telegram message diff entities describing the changes between two text strings
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+> [!NOTE]
+> Array
+
+##### <pre>Arguments</pre>
+- oldText(<small>string</small>) <kbd style="color : red">required</kbd> :
+  - The original text before modifications
+
+- newText(<small>string</small>) <kbd style="color : red">required</kbd> :
+  - The updated text after modifications
+
+##### <pre>Returns</pre>
+An array of [MessageEntity](https://tl.liveproto.dev/#/type/MessageEntity) diff objects
+
+##### <pre>Example</pre>
+```php
+$entities = $client->parse_diff(
+	oldText : 'Hello world',
+	newText : 'hello Telegram'
+);
+
+$peer = $client->get_input_peer('@TakNone');
+$client->messages->sendMessage(peer : $peer,message : 'hello Telegram',random_id : random_int(PHP_INT_MIN,PHP_INT_MAX),entities : $entities);
+```
+
+---
+
 ## markdown()
 
 Parses a Markdown‑formatted string into a Telegram text + entities array
@@ -1160,6 +1318,12 @@ _Italic_
 `Code`
 
 ||Spoiler||
+
+[👍](tg://emoji?id=5368324170671202286)
+
+[22:45 tomorrow](tg://time?unix=1647531900&format=wDT)
+
+#Markdown
 ');
 
 $peer = $client->get_input_peer('@TakNone');
@@ -1232,6 +1396,8 @@ Thank you for using the <a href = "https://t.me/LiveProto">LiveProto 🌱</a> li
 <a href = "tg://user?id=123456789">inline mention of a user</a>
 
 <tg-emoji emoji-id = "5820916017458583465">🌱</tg-emoji>
+
+<tg-time unix = "1647531900" format = "wDT">22:45 tomorrow</tg-time>
 
 <code>inline fixed-width code</code>
 
@@ -1476,6 +1642,63 @@ $fileObject = $client->fromBotAPI($file_id);
 $generated = $client->toBotAPI($fileObject->file_type,$fileObject->dc_id,$fileObject->input_location,$fileObject->version,$fileObject->sub_version);
 
 var_dump($file_id === $generated);
+```
+
+---
+
+## edit_inline()
+
+Edits an inline bot message previously sent through inline mode
+
+Usable by :
+- [ ] Users
+- [x] Bots
+
+> [!NOTE]
+> Array
+
+##### <pre>Arguments</pre>
+- id(<small>InputBotInlineMessageID</small>) <kbd style="color : red">required</kbd> :
+  - Identifier of the inline message to edit
+
+- message(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - New message text
+
+- parse_mode(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Parse mode for formatting, Supported values : HTML, Markdown
+
+- media(<small>string</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - New media to attach. Can be a local file path or Telegram media object
+
+- reply_markup(<small>array</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Inline keyboard or reply markup attached to the message
+
+- file_type(<small>FileType</small>) <kbd onclick = "alert('default : FileType::DOCUMENT')">optional</kbd> :
+  - File type used when uploading a local media file
+
+- uploaded(<small>array</small>) <kbd onclick = "alert('default : Array')">optional</kbd> :
+  - Additional upload parameters passed to media upload methods
+
+- ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
+  - Additional variadic arguments forwarded to lower-level [`editInlineBotMessage`](https://tl.liveproto.dev/#/method/messages.editInlineBotMessage)
+
+##### <pre>Returns</pre>
+A boolean indicating whether the inline message was successfully edited
+
+##### <pre>Example</pre>
+```php
+use Tak\Liveproto\Filters\Filter;
+use Tak\Liveproto\Filters\Events\ChosenInlineResult;
+
+#[Filter(new ChosenInlineResult())]
+function chosenInline(object $update) : void {
+	$client = $update->getClient();
+	$client->edit_inline(
+		id : $update->msg_id,
+		message : 'Updated text',
+		parse_mode : 'html'
+	);
+}
 ```
 
 ---
@@ -2212,6 +2435,9 @@ Usable by :
 - send_as(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - Send this message as the specified peer
 
+- reply_markup(<small>array</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Reply Keyboard Markup or Reply Inline Markup attached to the message
+
 - file_type(<small>FileType</small>) <kbd onclick = "alert('default : FileType::DOCUMENT')">optional</kbd> :
   - Specifies how to treat a string media ( document , photo , etc.) Uses the [`FileType`](en/enums.md#FileType) enum
 
@@ -2219,7 +2445,7 @@ Usable by :
   - Optional array of upload-related metadata / options passed to get_input_media_uploaded ( e.g. , attributes )
 
 - args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
-  - Additional variadic arguments forwarded to lower-level [`sendMessage`](https://tl.liveproto.dev/#/method/messages.sendMessage) / [`sendMedia`](https://tl.liveproto.dev/#/method/messages.sendMedia) calls ( e.g. , reply_markup , schedule_date )
+  - Additional variadic arguments forwarded to lower-level [`sendMessage`](https://tl.liveproto.dev/#/method/messages.sendMessage) / [`sendMedia`](https://tl.liveproto.dev/#/method/messages.sendMedia) calls ( e.g. , schedule_date )
 
 ##### <pre>Returns</pre>
 An instance of [Message](https://core.telegram.org/constructor/message) or an array of [Message](https://core.telegram.org/constructor/message) instances when multiple messages were sent
@@ -2231,6 +2457,102 @@ $client->send_content(peer : '@TakNone',message : 'Hello <b>world</b> !',parse_m
 $attributes = array($client->documentAttributeVideo(duration : 60,w : 512,h : 512)); // this is optional
 
 $client->send_content(peer : '@LiveProtoChat',message : 'This is the media caption',media : './video.mp4',uploaded : ['attributes'=>$attributes]); // send an uploaded media ( path ) as a document with extra upload options
+```
+
+---
+
+## edit_content()
+
+Edits an existing message in a chat, channel, group or private conversation
+
+Usable by :
+- [x] Users
+- [x] Bots
+
+> [!NOTE]
+> Array
+
+##### <pre>Arguments</pre>
+- peer(<small>string</small>,<small>int</small>,<small>object</small>) <kbd style="color : red">required</kbd> :
+  - Target chat where the message is located
+
+- id(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Identifier of the message to edit
+
+- message(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - New message text
+
+- parse_mode(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Parse mode for formatting, Supported values: HTML, Markdown
+
+- media(<small>string</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - New media to attach. Can be a file path or Telegram media object
+
+- reply_markup(<small>array</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Reply Keyboard Markup or Reply Inline Markup attached to the message
+
+- file_type(<small>FileType</small>) <kbd onclick = "alert('default : FileType::DOCUMENT')">optional</kbd> :
+  - File type used when uploading media
+
+- uploaded(<small>array</small>) <kbd onclick = "alert('default : Array')">optional</kbd> :
+  - Additional upload settings passed to upload handlers
+
+- ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
+  - Additional variadic arguments forwarded to lower-level [`editMessage`](https://tl.liveproto.dev/#/method/messages.editMessage)
+
+##### <pre>Returns</pre>
+An instance of [Updates](https://core.telegram.org/type/Updates)
+
+##### <pre>Example</pre>
+```php
+$client->edit_content(
+	peer : 'me',
+	id : 123,
+	message : '<b>Updated text</b>',
+	parse_mode : 'html'
+);
+```
+
+---
+
+## send_message_draft()
+
+Sends a draft typing action that displays a message draft to the user without actually sending the message
+
+Usable by :
+- [x] Users
+- [ ] Bots
+
+> [!NOTE]
+> Array
+
+##### <pre>Arguments</pre>
+- peer(<small>string</small>,<small>int</small>,<small>object</small>) <kbd style="color : red">required</kbd> :
+  - Target chat where the draft should appear
+
+- draft_id(<small>int</small>) <kbd style="color : red">required</kbd> :
+  - Unique draft identifier used by Telegram to track the draft
+
+- message(<small>string</small>) <kbd style="color : red">required</kbd> :
+  - Draft text to display
+
+- parse_mode(<small>string</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Parse mode for formatting, Supported values : HTML, Markdown
+
+- ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
+  - Additional variadic arguments forwarded to lower-level [`setTyping`](https://tl.liveproto.dev/#/method/messages.setTyping)
+
+##### <pre>Returns</pre>
+A boolean or an array of booleans indicating whether the draft action was successfully delivered
+
+##### <pre>Example</pre>
+```php
+$client->send_message_draft(
+	peer : '@TakNone',
+	draft_id : 123456,
+	message : 'Typing a *long* response...',
+	parse_mode : 'markdown'
+);
 ```
 
 ---

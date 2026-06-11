@@ -225,6 +225,18 @@ final class Client extends Caller implements Stringable {
 			endif;
 		endforeach;
 	}
+	public function registerFilteredClasses() : void {
+		$classes = get_declared_classes();
+		foreach($classes as $className):
+			$reflection = new \ReflectionClass($className);
+			if($reflection->isInstantiable()):
+				$attributes = $reflection->getAttributes(Filter::class); # flag : \ReflectionAttribute::IS_INSTANCEOF
+				if(empty($attributes) === false):
+					$this->addHandler($reflection->newInstance());
+				endif;
+			endif;
+		endforeach;
+	}
 	public function addHandler(object | callable $callback,? string $unique = null,Filter ...$filters) : void {
 		$this->handler->addEventHandler($callback,$unique,...$filters);
 	}
@@ -293,6 +305,7 @@ final class Client extends Caller implements Stringable {
 			$this->connect();
 		endif;
 		$this->registerFilteredFunctions();
+		$this->registerFilteredClasses();
 		if(is_array($this->settings->takeout)):
 			$this->takeoutid = $this->account->initTakeoutSession(...$this->settings->takeout)->id;
 		endif;

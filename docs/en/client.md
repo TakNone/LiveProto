@@ -55,6 +55,8 @@
 
 - `registerFilteredFunctions` => <kbd>void</kbd> : Registers internal RPC functions for filtered updates
 
+- `registerFilteredClasses` => <kbd>void</kbd> : Registers internal RPC classes for filtered updates
+
 - `addHandler` => <kbd>void</kbd> : Adds an update‐handler callback
 
   - <kbd>object | callable $callback</kbd> , the handler to invoke on incoming updates

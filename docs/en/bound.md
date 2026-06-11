@@ -160,11 +160,13 @@
 
 > Used to edit a message on the current peer
 
+> [!TIP]
+> The `peer` and `id` parameters are already filled in for the `edit_content` method
+> The `id` parameter is already filled in for the `edit_inline` method
+
 | Parameter | Type | Default | Description |
 | :---: | :---: | :---: | :--- |
-| `message` | `string` | `null` | The new text of the message that is to be changed |
-| `media` | `object` | `null` | The new media of the message that is to be changed |
-| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [editMessage](https://tl.liveproto.dev/#/method/messages.editMessage) or [editInlineBotMessage](https://tl.liveproto.dev/#/method/messages.editInlineBotMessage) for inline bot message |
+| `...args` | `mixed` | <kbd style="color : dodgerblue">optional</kbd> | Any additional parameters you give will be passed to the [edit_content](https://docs.liveproto.dev/#/en/methods?id=edit_content) or [edit_inline](https://docs.liveproto.dev/#/en/methods?id=edit_inline) |
 
 <details>
 <summary style="color : slateblue">Belongs to which handlers ?!</summary>
