@@ -10,7 +10,9 @@ use Attribute;
 class Filter {
 	public array $items;
 
-	abstract public function apply(object $update) : mixed;
+	public function apply(object $update) : mixed {
+		return false;
+	}
 
 	static public function getFunctions(object $object,? string $unique = null) : array {
 		$reflection = new \ReflectionObject($object);
