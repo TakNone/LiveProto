@@ -12,11 +12,11 @@ final class NewJoinRequest extends Filter {
 	public function __construct(Filter ...$filters){
 		$this->items = $filters;
 	}
-	public function apply(object $update) : object | bool {
+	public function apply(object $update) : object | false {
 		# updatePendingJoinRequests#7063c3db peer:Peer requests_pending:int recent_requesters:Vector<long> = Update; #
 		# updateBotChatInviteRequester#11dfa986 peer:Peer date:int user_id:long about:string invite:ExportedChatInvite qts:int = Update; #
 		if($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdatePendingJoinRequests or $update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateBotChatInviteRequester):
-			$applies = array_map(fn($filter) : mixed => $filter->apply($update),$this->items);
+			$applies = array_map(static fn(Filter $filter) : mixed => $filter->apply($update),$this->items);
 			$event = Events::copy($update);
 			$event->addBoundMethods = $this->boundMethods(...);
 			return in_array(false,$applies) ? false : $event;

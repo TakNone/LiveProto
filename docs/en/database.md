@@ -14,8 +14,8 @@ use Tak\Liveproto\Utils\Settings;
 $settings = new Settings();
 
 /* Telegram Settings */
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 
 /* If you want to use MySQL */
 $settings->setServer('localhost');
@@ -38,8 +38,8 @@ use Tak\Liveproto\Utils\Settings;
 $settings = new Settings();
 
 /* Telegram Settings */
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 
 $client = new Client('YourSessionName','sqlite',$settings);
 ```
@@ -59,8 +59,8 @@ use Tak\Liveproto\Utils\Settings;
 $settings = new Settings();
 
 /* Telegram Settings */
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 
 $client = new Client('YourSessionName','string',$settings);
 ```
@@ -77,8 +77,8 @@ use Tak\Liveproto\Utils\Settings;
 $settings = new Settings();
 
 /* Telegram Settings */
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 
 $client = new Client('YourSessionName','string',$settings);
 
@@ -112,8 +112,8 @@ use Tak\Liveproto\Utils\Settings;
 $settings = new Settings();
 
 /* Telegram Settings */
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 
 $client = new Client(null,null,$settings);
 ```

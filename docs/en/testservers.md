@@ -34,7 +34,7 @@ The login code sent by Telegram to these test numbers is predictable in the test
 <?php
 
 if(file_exists('liveptoto.php') === false):
-    copy('https://installer.liveproto.dev/liveproto.php','liveptoto.php');
+	copy('https://installer.liveproto.dev/liveproto.php','liveptoto.php');
 endif;
 
 require_once 'liveptoto.php';
@@ -46,8 +46,8 @@ use Tak\Liveproto\Utils\Settings;
 $settings = new Settings();
 
 /* Telegram Settings */
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 $settings->setTestMode(true);
 $settings->setDC(2);
 

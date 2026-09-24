@@ -12,6 +12,8 @@ use Tak\Liveproto\Utils\Helper;
 
 use Tak\Liveproto\Utils\Tools;
 
+use Tak\Asyncio\Sync\Mutex;
+
 use function Tak\Asyncio\File\isFile;
 
 use function Tak\Asyncio\File\read;
@@ -151,10 +153,16 @@ final class Session {
 		if(Tools::inDestructor() === false and is_null($this->name) === false):
 			switch($this->mode):
 				case 'string':
-					$file = '.'.DIRECTORY_SEPARATOR.$this->name.'.session';
-					if(isFile($file)):
-						write($file,base64_encode(gzdeflate(serialize($this->content))));
-					endif;
+					static $mutex = new Mutex;
+					$lock = $mutex->acquire();
+					try {
+						$file = '.'.DIRECTORY_SEPARATOR.$this->name.'.session';
+						if(isFile($file)):
+							write($file,base64_encode(gzdeflate(serialize($this->content))));
+						endif;
+					} finally {
+						$lock->release();
+					}
 					break;
 				case 'sqlite':
 					$data = Tools::marshal($this->content->toArray());

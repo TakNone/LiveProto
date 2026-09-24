@@ -67,8 +67,8 @@ use Tak\Liveproto\Network\Client;
 use Tak\Liveproto\Utils\Settings;
 
 $settings = new Settings();
-$settings->setApiId(21724);
-$settings->setApiHash('3e0cb5efcd52300aec5994fdfc5bdc16');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 $settings->setHideLog(true);
 
 $client = new Client('testSession','sqlite',$settings);

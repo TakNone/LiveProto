@@ -282,6 +282,9 @@ final class Properties {
 					elseif($error->getCode() == 500):
 						Logging::log('Caller','Encountered an INTERNAL error , Resending the request',E_NOTICE);
 						$result = call_user_func(__METHOD__,$name,$arguments + $filtered);
+					elseif($error->getMessage() == 'Timeout'):
+						Logging::log('Caller','Timeout while fetching data , Resending the request',E_NOTICE);
+						$result = call_user_func(__METHOD__,$name,$arguments + $filtered);
 					else:
 						throw $error;
 					endif;

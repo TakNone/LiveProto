@@ -10,6 +10,8 @@ use Tak\Liveproto\Utils\Logging;
 
 use Tak\Liveproto\Filters\Filter;
 
+use Tak\Liveproto\Filters\Middleware;
+
 use Tak\Asyncio\Promise\DeferredFuture;
 
 use Tak\Asyncio\DeferredCancellation;
@@ -41,10 +43,22 @@ final class Updates {
 		$this->recoveryMutex = new Mutex;
 		$this->completion = new Mutex;
 	}
-	public function addEventHandler(object | callable $callback,? string $unique = null,object | array ...$filters) : void {
+	public function addMiddleware(object | callable $callback,array $hashes) : void {
+		foreach(array_keys($this->handlers) as $hash):
+			if(in_array($hash,$hashes,true)):
+				if($callback instanceof Middleware):
+					$this->handlers[$hash]['middlewares'] []= $callback->process(...);
+				elseif(is_callable($callback)):
+					$this->handlers[$hash]['middlewares'] []= $callback(...);
+				endif;
+			endif;
+		endforeach;
+	}
+	public function addEventHandler(object | callable $callback,? string $unique = null,object | array ...$filters) : object {
 		if(is_object($callback) and is_a($callback,'Closure') === false):
 			$functions = Filter::getFunctions($callback,$unique);
 			$this->handlers = array_merge($this->handlers,$functions);
+			$hashes = array_keys($functions);
 		else:
 			$function = Filter::getFunction($callback,$unique);
 			$additional = array_map(fn(object | array $filter) : array => array_values(array_filter(is_array($filter) ? $filter : array($filter),fn(mixed $index) : bool => $index instanceof Filter)),$filters);
@@ -52,7 +66,15 @@ final class Updates {
 			$attributes = array_merge($function[$name]['attributes'],$additional);
 			$function[$name]['attributes'] = empty($attributes) ? array($attributes) : $attributes;
 			$this->handlers = array_merge($this->handlers,$function);
+			$hashes = array_keys($function);
 		endif;
+		return new class($this,$hashes){
+			public function __construct(public readonly object $handler,protected array $hashes){}
+			public function middleware(object | callable $callback) : self {
+				$this->handler->addMiddleware($callback,$this->hashes);
+				return $this;
+			}
+		};
 	}
 	public function removeEventHandler(object | callable $callback,? string $unique = null) : void {
 		if(is_object($callback) and is_a($callback,'Closure') === false):
@@ -240,13 +262,12 @@ final class Updates {
 		$this->broadcastUpdate($update);
 	}
 	public function broadcastUpdate(object $update) : void {
-		$update->setClient($this->client);
 		foreach($this->handlers as $name => $handler):
 			Logging::log('Updates','Handler “'.$handler['name'].'” : Starting parameters checks');
 			$paramsCustom = array();
 			foreach($handler['parameters'] as $parameter):
 				$cloned = clone $update;
-				$check = $parameter($cloned);
+				$check = $parameter($cloned->setClient($this->client));
 				if($check === false):
 					Logging::log('Updates','Handler “'.$handler['name'].'” : Parameter check failed – skipping');
 					continue 2;
@@ -260,7 +281,8 @@ final class Updates {
 			endif;
 			foreach($handler['attributes'] as $i => $attributes):
 				Logging::log('Updates','Handler “'.$handler['name'].'”: Applying attributes – '.$i);
-				$applies = array_map(fn(object $attribute) : mixed => $attribute->apply(clone $update),$attributes);
+				$cloned = clone $update;
+				$applies = array_map(fn(object $attribute) : mixed => $attribute->apply($cloned->setClient($this->client)),$attributes);
 				if(empty($applies)):
 					Logging::log('Updates','Handler “'.$handler['name'].'” : Events were not generated – '.$i);
 					goto run;
@@ -285,11 +307,17 @@ final class Updates {
 			run:
 			if(empty($applies)):
 				Logging::log('Updates','Handler “'.$handler['name'].'” : Dispatching original callback');
-				$applies = array(clone $update);
+				$cloned = clone $update;
+				$applies = array($cloned->setClient($this->client));
 			endif;
-			Logging::log('Updates','Handler “'.$handler['name'].'” : Calling callback with events');
-			$arguments = array_map(fn(mixed $apply,? bool $paramCustom) : mixed => ($paramCustom and ($apply instanceof Instance) === true and ($apply instanceof Events) === false) ? Events::copy($apply)->setClient($this->client) : $apply,$applies,$paramsCustom);
-			async($handler['callback'],...$arguments)->catch(fn(\Throwable $error) : bool => error_log($error->getMessage()));
+			$modification = Middleware::applies($handler['middlewares'],$applies);
+			if(is_array($modification)):
+				$arguments = array_map(fn(mixed $apply,? bool $paramCustom) : mixed => ($paramCustom and ($apply instanceof Instance) === true and ($apply instanceof Events) === false) ? Events::copy($apply) : $apply,$modification,$paramsCustom);
+				Logging::log('Updates','Handler “'.$handler['name'].'” : Calling callback with events');
+				async($handler['callback'],...$arguments)->catch(fn(\Throwable $error) : bool => error_log($error->getMessage()));
+			else:
+				Logging::log('Updates','Handler “'.$handler['name'].'” : The call to this handler was halted by the middleware – cancellation');
+			endif;
 		endforeach;
 	}
 	public function &state(bool $reset = false) : object {

@@ -147,6 +147,11 @@ trait Download {
 				$filename = md5($bytes).(empty($extension) ? null : chr(46).$extension);
 				set_time_limit(0);
 				ignore_user_abort(false);
+				ini_set('display_errors','0');
+				ini_set('log_errors','1');
+				while(ob_get_level()):
+					ob_end_clean();
+				endwhile;
 				header('HTTP/1.1 200 OK');
 				header('Content-Type: application/octet-stream');
 				header('Content-Length: '.strlen($bytes));

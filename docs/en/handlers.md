@@ -286,70 +286,70 @@ The namespace for these is `Tak\Liveproto\Filters\Interfaces\__X__`
  * Incoming plain-text private messages only
  */
 function onPrivateText(Incoming & IsPrivate & IsNotMedia $update) : void {
-    // Fires when a user sends a text-only message in a 1:1 chat
+	// Fires when a user sends a text-only message in a 1:1 chat
 }
 
 /**
  * web-page preview in channel or PM
  */
 function onPreviewShared((HasWebPage & IsPrivate) | (HasWebPage & IsChannel) $update) : void {
-    // Fires when a link with preview is sent to you or your channel
+	// Fires when a link with preview is sent to you or your channel
 }
 
 /**
  * Incoming group messages that are replies and contain documents
  */
 function onGroupReplyDocument(Incoming & IsGroup & IsReply & HasDocument $update) : void {
-    // Fires when someone replies to a message in a basic group with a file
+	// Fires when someone replies to a message in a basic group with a file
 }
 
 /**
  * Invoice or poll in channels
  */
 function onSaleOrSurvey((HasInvoice & IsChannel) | (HasPoll & IsChannel) $update) : void {
-    // Fires when invoices or polls publish in channels
+	// Fires when invoices or polls publish in channels
 }
 
 /**
  * Outgoing channel posts with any media
  */
 function onOwnChannelMedia(Outgoing & IsChannel & IsMedia $update) : void {
-    // Fires when *you* post media to one of your channels
+	// Fires when *you* post media to one of your channels
 }
 
 /**
  * Inline queries from non‑private chats (eg, groups, channels)
  */
 function onGroupInline(Inline & IsNotPrivate $update) : void {
-    // Fires when someone invokes your bot inline outside a 1:1 chat
+	// Fires when someone invokes your bot inline outside a 1:1 chat
 }
 
 /**
  * Incoming private messages with live‑location updates
  */
 function onPrivateLiveLocation(Incoming & IsPrivate & HasGeoLive $update) : void {
-    // Fires when a user shares or updates their live location in a private chat
+	// Fires when a user shares or updates their live location in a private chat
 }
 
 /**
  * Outgoing private messages that include contact cards
  */
 function onOwnContactShare(Outgoing & IsPrivate & HasContact $update) : void {
-    // Fires when you share someone’s contact in a private chat
+	// Fires when you share someone’s contact in a private chat
 }
 
 /**
  * Mention in channel or supergroup
  */
 function onMentionInChannels((Incoming & IsMentioned & IsChannel) | (Incoming & IsMentioned & IsSuperGroup) $update) : void {
-    // Fires when the bot is mentioned in a channel or supergroup
+	// Fires when the bot is mentioned in a channel or supergroup
 }
 
 /**
  * Incoming private messages with inline keyboards
  */
 function onPrivateInlineKeyboard(Incoming & IsPrivate & HasReplyMarkup $update) : void {
-    // Fires when someone sends a message in private that includes an inline keyboard
+	// Fires when someone sends a message in private that includes an inline keyboard
 }
 
 ```
@@ -401,11 +401,11 @@ use Tak\Liveproto\Enums\CommandType;
 function newMessage(Incoming & IsPrivate $update) : void {
 	list($message,$entities) = $update->markdown('👋 **__Hello__** , _welcome to ||the bot developed with||_ [LiveProto](https://t.me/LiveProtoChat) !');
 	$replymarkup = $update->replyInlineMarkup(rows : array(
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonCallback(text : 'callback button',data : 'test callback'),$update->keyboardButtonUrl(text : 'url button',url : 'https://telegram.org')
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'callback button',type : $update->inlineButtonTypeCallback(data : 'test callback')),$update->keyboardInlineButton(text : 'url button',type : $update->inlineButtonTypeUrl(url : 'https://telegram.org'))
 		)),
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonSwitchInline(text : 'switch button',query : 'switch query')
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'switch button',type : $update->inlineButtonTypeSwitchInline(query : 'switch query'))
 		)),
 	));
 	$update->reply(message : $message,entities : $entities,reply_markup : $replymarkup);
@@ -427,11 +427,11 @@ function inlineQuery(IsSelf | IsPrivate $update) : void {
 	*/
 	list($message,$entities) = $update->html('😉 Your input : <q>'.htmlspecialchars($sth,ENT_HTML5).'</q>');
 	$replymarkup = $update->replyInlineMarkup(rows : array(
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonCallback(text : 'Hi',data : '/Hello World'),$update->keyboardButtonUrl(text : 'go to bot',url : 'https://t.me/'.$me->username)
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'Hi',type : $update->inlineButtonTypeCallback(data : '/Hello World')),$update->keyboardInlineButton(text : 'go to bot',type : $update->inlineButtonTypeUrl(url : 'https://t.me/'.$me->username))
 		)),
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonSwitchInline(text : 'switch button',query : 'switch query',same_peer : true)
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'switch button',type : $update->inlineButtonTypeSwitchInline(query : 'switch query',same_peer : true))
 		)),
 	));
 	$results = array(
@@ -496,6 +496,67 @@ function deleteMessages(object $update) : void {
 }
 
 ```
+
+---
+
+## Middlewares
+
+Middleware allows you to intercept, inspect, and filter incoming updates before they reach your final handler. This is perfect for cross-cutting logic like authentication, rate-limiting, and role checks
+
+Here are the two ways to implement middleware in LiveProto : **Stacked Attributes** ( Declarative ) and the **Inline Fluent Builder** ( Functional )
+
+---
+
+### Stacked Attributes ( Declarative Style )
+
+```php
+use Tak\Liveproto\Filters\Filter;
+use Tak\Liveproto\Filters\Events\NewMessage;
+
+use Tak\Liveproto\Filters\Interfaces\Incoming;
+
+// An example of the middlewares you are going to write //
+
+use App\Middleware\AuthMiddleware;
+use App\Middleware\RateLimitMiddleware;
+use App\Middleware\RoleMiddleware;
+
+final class AdminCommands {
+	#[Filter(new NewMessage())]
+	#[AuthMiddleware]
+	#[RateLimitMiddleware]
+	#[RoleMiddleware('admin')]
+	public function deleteDatabase(Incoming $update) : void {
+		$update->reply('Database successfully purged !');
+	}
+}
+
+$client->addHandler(new AdminCommands());
+
+$client->start(); // You must start the client to receive updates
+```
+
+---
+
+### Inline Fluent Builder ( Functional Style )
+
+```php
+$client->addHandler(function(object $update) : void {
+	var_dump($update->props);
+})->middleware(function(object $update) : object {
+	$update->checked = true;
+	$update->props = ['You can make any changes you want to the update'];
+	if(time() % 2 === 0){
+		return $update;
+	} else {
+		throw new Exception('Condition not met, skipping handler');
+	}
+});
+
+$client->start(); // You must start the client to receive updates
+```
+
+---
 
 ## Fetch One Update
 

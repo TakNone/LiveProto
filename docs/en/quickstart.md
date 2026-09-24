@@ -12,7 +12,7 @@ Here we will explain how to create a <mark>LiveProto Client</mark> instance
 <?php
 
 if(file_exists('liveproto.php') === false):
-    copy('https://installer.liveproto.dev/liveproto.php','liveproto.php');
+	copy('https://installer.liveproto.dev/liveproto.php','liveproto.php');
 endif;
 
 require_once 'liveproto.php';
@@ -22,8 +22,8 @@ use Tak\Liveproto\Network\Client;
 use Tak\Liveproto\Utils\Settings;
 
 $settings = new Settings();
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 
 $client = new Client('YourSessionName','string',$settings);
 ```

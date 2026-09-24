@@ -348,7 +348,7 @@ $client->wait_token(timeout : 60);
 
 ## create_reply_markup()
 
-Creates a Telegram reply markup object. Supports reply keyboards, inline keyboards, keyboard removal, and force reply markups
+Creates a Telegram reply markup from a regular keyboard, inline keyboard, remove-keyboard request, or force-reply request. Keyboard rows and buttons are converted into the corresponding MTProto reply markup objects
 
 Usable by :
 - [ ] Users
@@ -359,19 +359,19 @@ Usable by :
 
 ##### <pre>Arguments</pre>
 - keyboard(<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Array of keyboard rows used to create a reply keyboard markup
+  - A two-dimensional array containing regular reply keyboard buttons. Each inner array represents one row of buttons
 
 - inline_keyboard(<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Array of keyboard rows used to create an inline keyboard markup
+  - A two-dimensional array containing inline keyboard buttons. Each inner array represents one row of inline buttons
 
 - remove_keyboard(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
-  - Whether to remove the currently displayed custom keyboard
+  - If true, creates a reply keyboard removal markup, instructing Telegram clients to remove the currently displayed custom keyboard
 
 - force_reply(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
-  - Whether to force the user to reply to the message
+  - If true, creates a force-reply markup that asks the Telegram client to display the reply interface to the user
 
 - ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
-  - Additional parameters passed directly to the underlying Telegram reply markup constructor
+  - Additional parameters passed directly to the generated Telegram reply markup constructor
 
 ##### <pre>Returns</pre>
 An instance of [ReplyMarkup](https://tl.liveproto.dev/#/type/ReplyMarkup)
@@ -418,10 +418,13 @@ Usable by :
 
 ##### <pre>Arguments</pre>
 - buttons(<small>array</small>) <kbd style="color : red">required</kbd> :
-  - Array of button definitions in Bot API format
+  - An array of button definitions. Each button must be an associative array containing at least a text field and the properties required by its button type
+
+- inline(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
+  - Determines whether the buttons should be created as inline keyboard buttons. When false, regular reply keyboard buttons are generated
 
 ##### <pre>Returns</pre>
-An instance of [KeyboardButtonRow](https://tl.liveproto.dev/#/constructor/keyboardButtonRow)
+An instance of [KeyboardButtonRow](https://tl.liveproto.dev/#/constructor/keyboardButtonRow) or [KeyboardInlineButtonRow](https://tl.liveproto.dev/#/constructor/keyboardInlineButtonRow)
 
 ##### <pre>Example</pre>
 ```php
@@ -436,7 +439,7 @@ $buttonRowOne = $client->compose_row([
 		'callback_data'=>'hello',
 		'icon_custom_emoji_id'=>5820916017458583465
 	]
-]);
+],inline : true);
 
 $buttonRowTwo = $client->compose_row([
 	[
@@ -445,7 +448,7 @@ $buttonRowTwo = $client->compose_row([
 			'url'=>'https://tl.liveproto.dev'
 		]
 	]
-]);
+],inline : true);
 
 $inputReplyMarkup = $client->replyInlineMarkup(rows : array($buttonRowOne,$buttonRowTwo));
 
@@ -459,7 +462,7 @@ $buttonRow = $client->compose_row([
 		'text'=>'Share Location',
 		'request_location'=>true
 	]
-]);
+],inline : false);
 
 $inputReplyMarkup = $client->replyKeyboardMarkup(rows : array($buttonRow));
 
@@ -509,17 +512,25 @@ Usable by :
 - geo(<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
   - To share location
 
-- user(<small>string</small>,<small>int</small>,<small>null</small>,<small>object</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
-  - Clicking on the button switch inline must have a destination to send to , as well as the button request peer
+- poll(<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - Poll information used for a request-poll button. The array must contain question and answers
+
+- platform(<small>string</small>) <kbd onclick = "alert('default : android')">optional</kbd> :
+  - The client platform passed to Telegram when opening a WebView or Simple WebView button
+
+- chat(<small>string</small>,<small>int</small>,<small>object</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
+  - The peer to use when a button requires selecting or switching to another chat, such as request-peer or switch-inline buttons
 
 ##### <pre>Returns</pre>
-A mixed response depending on the button type
+The result returned by the Telegram method associated with the selected button, such as a message, callback answer, URL authorization result, payment form, inline query result, or other MTProto object
 
 ##### <pre>Example</pre>
 ```php
 $client->click_button(message : $message,i : 0,j : 1);
 
-$client->click_button(message : $message,text : 'Hello');
+$client->click_button(message : $message,text : 'Click me');
+
+$client->click_button(message : $message,data : 'Confirm');
 
 $client->click_button(message : $message,filter : function(object $button) : bool {
 	if(isset($button->text) and str_starts_with($button->text,'X...')){
@@ -530,6 +541,10 @@ $client->click_button(message : $message,filter : function(object $button) : boo
 		return false;
 	}
 });
+
+$client->click_button(message : $message,text : 'Share location',geo : ['lat'=>35.6892,'long'=>51.3890]);
+
+$client->click_button(message : $message,text : 'Share contact',contact : ['phone'=>'+123456789','firstname'=>'Tak','lastname'=>'None']);
 ```
 
 ---
@@ -558,7 +573,7 @@ Usable by :
 - limit(<small>int</small>) <kbd onclick = "alert('default : 100')">optional</kbd> :
   - Maximum number of dialogs to retrieve in one request / batch
 
-- saved(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- saved(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true, the getSavedDialogs or getPinnedSavedDialogs ( pinned = true) method will be used
 
 - hashgen(<small>Closure</small>,<small>array</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :
@@ -1676,7 +1691,7 @@ Usable by :
 - file_type(<small>FileType</small>) <kbd onclick = "alert('default : FileType::DOCUMENT')">optional</kbd> :
   - File type used when uploading a local media file
 
-- uploaded(<small>array</small>) <kbd onclick = "alert('default : Array')">optional</kbd> :
+- uploaded(<small>array</small>) <kbd onclick = "alert('default : array()')">optional</kbd> :
   - Additional upload parameters passed to media upload methods
 
 - ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
@@ -2444,7 +2459,7 @@ Usable by :
 - uploaded(<small>array</small>) <kbd onclick = "alert('default : array()')">optional</kbd> :
   - Optional array of upload-related metadata / options passed to get_input_media_uploaded ( e.g. , attributes )
 
-- args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
+- ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
   - Additional variadic arguments forwarded to lower-level [`sendMessage`](https://tl.liveproto.dev/#/method/messages.sendMessage) / [`sendMedia`](https://tl.liveproto.dev/#/method/messages.sendMedia) calls ( e.g. , schedule_date )
 
 ##### <pre>Returns</pre>
@@ -2494,7 +2509,7 @@ Usable by :
 - file_type(<small>FileType</small>) <kbd onclick = "alert('default : FileType::DOCUMENT')">optional</kbd> :
   - File type used when uploading media
 
-- uploaded(<small>array</small>) <kbd onclick = "alert('default : Array')">optional</kbd> :
+- uploaded(<small>array</small>) <kbd onclick = "alert('default : array()')">optional</kbd> :
   - Additional upload settings passed to upload handlers
 
 - ...args(<small>mixed</small>) <kbd onclick = "alert('default : empty')">optional</kbd> :
@@ -2596,25 +2611,25 @@ Usable by :
 - max_date(<small>int</small>) <kbd onclick = "alert('default : 0')">optional</kbd> :
   - Maximum unix date ( timestamp ) to include
 
-- unread_mentions(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- unread_mentions(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true , only messages with unread mentions will be included
 
-- unread_reactions(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- unread_reactions(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true,only messages with unread reactions will be included
 
-- recent_locations(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- recent_locations(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true , include recent location messages ( used for live location listing )
 
-- posts(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- posts(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true , fetch channel / saved post messages ( post-type entries )
 
-- search(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- search(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true , the call performs a search ( affects how query / filter are interpreted )
 
-- saved(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- saved(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true , include saved messages ( your Saved Messages )
 
-- scheduled(<small>bool</small>) <kbd onclick = "alert('default : ')">optional</kbd> :
+- scheduled(<small>bool</small>) <kbd onclick = "alert('default : false')">optional</kbd> :
   - If true , include scheduled messages ( for channels or scheduled dialogs )
 
 - id(<small>array&lt;int&gt;</small>,<small>null</small>) <kbd onclick = "alert('default : null')">optional</kbd> :

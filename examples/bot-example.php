@@ -40,8 +40,8 @@ use Tak\Asyncio\Loop;
 use function Tak\Asyncio\delay;
 
 $settings = new Settings();
-$settings->setApiId(21724);
-$settings->setApiHash('3e0cb5efcd52300aec5994fdfc5bdc16');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 $settings->setHideLog(false);
 $settings->setReceiveUpdates(false);
 
@@ -50,11 +50,11 @@ function start(Incoming & IsPrivate $update) : void {
 	list($message,$entities) = $update->markdown('👋 **__Hello__** , _welcome to ||the bot developed with||_ [LiveProto](https://t.me/LiveProtoChat) !');
 
 	$replymarkup = $update->replyInlineMarkup(rows : array(
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonCallback(text : 'Callback button',data : 'test callback'),$update->keyboardButtonUrl(text : 'Url button',url : 'https://telegram.org')
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'Callback button',type : $update->inlineButtonTypeCallback(data : 'test callback')),$update->keyboardInlineButton(text : 'Url button',type : $update->inlineButtonTypeUrl(url : 'https://telegram.org'))
 		)),
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonSwitchInline(text : 'Switch button',query : 'switch query')
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'Switch button',type : $update->inlineButtonTypeSwitchInline(query : 'switch query'))
 		)),
 	));
 
@@ -88,11 +88,11 @@ function inlines(IsSelf | IsPrivate $update) : void {
 	list($message,$entities) = $update->html('😉 Your input : <q>'.htmlspecialchars($sth,ENT_HTML5).'</q>');
 
 	$replymarkup = $update->replyInlineMarkup(rows : array(
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonCallback(text : 'Hi',data : '/Hello World'),$update->keyboardButtonUrl(text : 'Go to bot',url : 'https://t.me/'.$me->username)
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'Hi',type : $update->inlineButtonTypeCallback(data : '/Hello World')),$update->keyboardInlineButton(text : 'Go to bot',type : $update->inlineButtonTypeUrl(url : 'https://t.me/'.$me->username))
 		)),
-		$update->keyboardButtonRow(buttons : array(
-			$update->keyboardButtonSwitchInline(text : 'Switch button',query : 'switch query',same_peer : true)
+		$update->keyboardInlineButtonRow(buttons : array(
+			$update->keyboardInlineButton(text : 'Switch button',type : $update->inlineButtonTypeSwitchInline(query : 'switch query',same_peer : true))
 		)),
 	));
 

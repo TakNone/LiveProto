@@ -12,7 +12,7 @@ final class NewScheduledMessage extends Filter {
 	public function __construct(Filter ...$filters){
 		$this->items = $filters;
 	}
-	public function apply(object $update) : object | bool {
+	public function apply(object $update) : object | false {
 		if($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateNewScheduledMessage):
 			$messages = new Messages(...$this->items);
 			return $messages->apply($update);

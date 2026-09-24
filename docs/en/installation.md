@@ -14,7 +14,7 @@ If you want to have a quick and easy start, it is recommended to use this method
 <?php
 
 if(file_exists('liveproto.php') === false):
-    copy('https://installer.liveproto.dev/liveproto.php','liveproto.php');
+	copy('https://installer.liveproto.dev/liveproto.php','liveproto.php');
 endif;
 
 require_once 'liveproto.php';
@@ -25,10 +25,10 @@ require_once 'liveproto.php';
 ```php
 <?php
 
-define('LP_VERSION','0.0.15');
+define('LP_VERSION','1.0.3');
 
 if(file_exists('liveproto.php') === false):
-    copy('https://installer.liveproto.dev/liveproto.php','liveproto.php');
+	copy('https://installer.liveproto.dev/liveproto.php','liveproto.php');
 endif;
 
 require_once 'liveproto.php';
@@ -39,11 +39,11 @@ OR
 ```php
 <?php
 
-if(file_exists('liveproto-v0.0.15.phar') === false):
-    copy('https://phar.liveproto.dev/v0.0.15/liveproto.phar','liveproto-v0.0.15.phar');
+if(file_exists('liveproto-v1.0.4.phar') === false):
+	copy('https://phar.liveproto.dev/v1.0.4/liveproto.phar','liveproto-v1.0.4.phar');
 endif;
 
-require_once 'liveproto-v0.0.15.phar';
+require_once 'liveproto-v1.0.4.phar';
 ```
 
 ---
@@ -77,7 +77,8 @@ require_once 'vendor/autoload.php';
 ```json
 {
     "require": {
-        "taknone/liveproto": "*"
+        "taknone/liveproto": "*",
+        "taknone/bootstrapper": "*"
     },
     "config": {
         "allow-plugins": {

@@ -30,11 +30,10 @@ use Tak\Liveproto\Enums\CommandType;
 use Tak\Asyncio\Loop;
 
 $settings = new Settings();
-$settings->setApiId(29784714);
-$settings->setApiHash('143dfc3c92049c32fbc553de2e5fb8e4');
+$settings->setApiId(5368212);
+$settings->setApiHash('87fb8a7a6dc103f87e2e27a30868ce86');
 $settings->setDeviceModel('PC 64bit');
 $settings->setSystemVersion('4.14.186');
-$settings->setAppVersion('1.28.5');
 $settings->setIPv6(false);
 $settings->setHideLog(true);
 $settings->setReceiveUpdates(false);

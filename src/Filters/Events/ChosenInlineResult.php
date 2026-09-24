@@ -12,9 +12,9 @@ final class ChosenInlineResult extends Filter {
 	public function __construct(Filter ...$filters){
 		$this->items = $filters;
 	}
-	public function apply(object $update) : object | bool {
+	public function apply(object $update) : object | false {
 		if($update instanceof \Tak\Liveproto\Tl\Types\Other\UpdateBotInlineSend):
-			$applies = array_map(fn($filter) : mixed => $filter->apply($update),$this->items);
+			$applies = array_map(static fn(Filter $filter) : mixed => $filter->apply($update),$this->items);
 			$event = Events::copy($update);
 			$event->addBoundMethods = $this->boundMethods(...);
 			return in_array(false,$applies) ? false : $event;

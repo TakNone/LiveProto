@@ -237,8 +237,8 @@ final class Client extends Caller implements Stringable {
 			endif;
 		endforeach;
 	}
-	public function addHandler(object | callable $callback,? string $unique = null,Filter ...$filters) : void {
-		$this->handler->addEventHandler($callback,$unique,...$filters);
+	public function addHandler(object | callable $callback,? string $unique = null,Filter ...$filters) : object {
+		return $this->handler->addEventHandler($callback,$unique,...$filters);
 	}
 	public function removeHandler(object | callable $callback,? string $unique = null) : void {
 		$this->handler->removeEventHandler($callback,$unique);
@@ -255,6 +255,8 @@ final class Client extends Caller implements Stringable {
 			$this->connect();
 		endif;
 		if(Tools::isCli()):
+			$storedState = boolval(Logging::$hide);
+			Logging::$hide = true;
 			if($this->load->step === Authentication::NEED_AUTHENTICATION):
 				$input = Tools::readLine('Please enter your phone number ( Or your bot token , you can give it from @BotFather ) : ');
 				if(str_contains($input,chr(58))):
@@ -293,6 +295,7 @@ final class Client extends Caller implements Stringable {
 				$this->stop();
 				exit('Cli login does not support the stage your account is logged into ( '.$this->load->step->value.' ) !');
 			endif;
+			Logging::$hide = $storedState;
 		else:
 			include(__DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'login.php');
 		endif;
