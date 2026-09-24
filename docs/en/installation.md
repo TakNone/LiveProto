@@ -39,11 +39,11 @@ OR
 ```php
 <?php
 
-if(file_exists('liveproto-v1.0.4.phar') === false):
-	copy('https://phar.liveproto.dev/v1.0.4/liveproto.phar','liveproto-v1.0.4.phar');
+if(file_exists('liveproto-v1.0.5.phar') === false):
+	copy('https://phar.liveproto.dev/v1.0.5/liveproto.phar','liveproto-v1.0.5.phar');
 endif;
 
-require_once 'liveproto-v1.0.4.phar';
+require_once 'liveproto-v1.0.5.phar';
 ```
 
 ---
