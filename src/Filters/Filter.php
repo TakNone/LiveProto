@@ -72,7 +72,7 @@ class Filter {
 		endforeach;
 	return $filters;
 	}
-	static public function getMiddlewares(ReflectionClass | ReflectionMethod | ReflectionFunction $reflection) : array {
+	static public function getMiddlewares(\ReflectionClass | \ReflectionMethod | \ReflectionFunction $reflection) : array {
 		$middlewares = array();
 		$attributes = $reflection->getAttributes(Middleware::class,\ReflectionAttribute::IS_INSTANCEOF);
 		foreach($attributes as $attribute):
@@ -88,7 +88,7 @@ class Filter {
 							if(is_array($arguments)):
 								return $arguments;
 							endif;
-						} catch(Throwable){
+						} catch(\Throwable){
 							// Since it's an OR operation, we skip this and check the rest //
 						}
 					endforeach;
