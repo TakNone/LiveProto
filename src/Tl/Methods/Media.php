@@ -146,6 +146,12 @@ trait Media {
 			'messageMediaToDo' => $this->inputMediaTodo(
 				todo : $messageMedia->todo
 			),
+			# inputMediaWidgetId#7c855cb5 flags:# widget_id:long chat_data:flags.0?string = InputMedia; #
+			# messageMediaWidget#2238f214 flags:# is_copy:flags.0?true can_query:flags.1?true background_query:flags.2?true width:int height:int payload:bytes public_data:flags.3?string public_data_hash:flags.3?long chat_data:flags.4?string widget_id:flags.5?long = MessageMedia; #
+			'messageMediaWidget' => boolval(is_null($messageMedia->widget_id) or is_null($messageMedia->chat_data)) ? $this->inputMediaEmpty() : $this->inputMediaWidgetId(
+				widget_id : $messageMedia->widget_id,
+				chat_data : $messageMedia->chat_data
+			),
 			# messageMediaUnsupported#9f84f49e = MessageMedia; #
 			'messageMediaUnsupported' => $this->inputMediaEmpty(),
 			# inputMediaDocumentExternal#779600f9 flags:# spoiler:flags.1?true url:string ttl_seconds:flags.0?int video_cover:flags.2?InputPhoto video_timestamp:flags.3?int = InputMedia; #

@@ -170,7 +170,7 @@ trait Buttons {
 				elseif($button->type instanceof \Tak\Liveproto\Tl\Types\Other\InlineButtonTypeUrlAuth):
 					$result = $this->messages->requestUrlAuth(peer : $peer,msg_id : $message->id,button_id : $button->type->button_id);
 					if($result instanceof \Tak\Liveproto\Tl\Types\Other\UrlAuthResultRequest):
-						return $this->messages->acceptUrlAuth(peer : $peer,msg_id : $message->id,button_id : $button->type->button_id,write_allowed : boolval($result->request_write_access));
+						return $this->messages->acceptUrlAuth(peer : $peer,msg_id : $message->id,button_id : $button->type->button_id,write_allowed : boolval($result->request_write_access),share_phone_number : boolval($result->request_phone_number));
 					else:
 						return $result;
 					endif;
